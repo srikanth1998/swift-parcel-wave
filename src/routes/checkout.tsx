@@ -23,9 +23,9 @@ export const Route = createFileRoute("/checkout")({
   component: Checkout,
 });
 
-const TAX_RATE = 0.08;
-const DELIVERY_CENTS = 499;
-const FREE_THRESHOLD = 5000;
+const TAX_RATE = 0.05; // GST 5%
+const DELIVERY_CENTS = 4000; // ₹40
+const FREE_THRESHOLD = 49900; // free over ₹499
 
 function Checkout() {
   const { items, subtotalCents, hydrated, clear } = useCart();
@@ -123,8 +123,9 @@ function Checkout() {
             <Field label="State" required>
               <Input required maxLength={60} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
             </Field>
-            <Field label="ZIP code" required>
-              <Input required maxLength={20} value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value })} />
+            <Field label="PIN code" required>
+              <Input required inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="6-digit PIN"
+                value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })} />
             </Field>
             <Field label="Delivery instructions" className="md:col-span-2">
               <Textarea rows={2} maxLength={500} placeholder="e.g., Leave at the front door"
@@ -180,7 +181,7 @@ function Checkout() {
         </ul>
         <div className="my-4 h-px bg-border" />
         <Row label="Subtotal" value={formatCents(subtotalCents)} />
-        <Row label="Tax (8%)" value={formatCents(tax)} />
+        <Row label="GST (5%)" value={formatCents(tax)} />
         <Row label="Delivery" value={deliveryCharge === 0 ? "Free" : formatCents(deliveryCharge)} />
         <div className="my-4 h-px bg-border" />
         <Row label="Total" value={formatCents(total)} bold />
