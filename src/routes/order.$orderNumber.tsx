@@ -2,8 +2,20 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getOrderByNumber } from "@/lib/orders.functions";
 import { formatCents } from "@/lib/format";
-import { CUSTOMER_TIMELINE, STATUS_LABEL } from "@/lib/order-status";
-import { Check, CircleDot, Package } from "lucide-react";
+import { CUSTOMER_TIMELINE, STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
+import { Check, CircleDot, Package, Truck } from "lucide-react";
+
+const STATUS_STYLE: Record<OrderStatus, string> = {
+  order_placed: "bg-gray-100 text-gray-700 border-gray-200",
+  payment_confirmed: "bg-blue-100 text-blue-700 border-blue-200",
+  order_confirmed: "bg-purple-100 text-purple-700 border-purple-200",
+  picking_items: "bg-orange-100 text-orange-700 border-orange-200",
+  packing: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  ready_for_delivery: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  sent_for_delivery: "bg-emerald-600 text-white border-emerald-700",
+  cancelled: "bg-red-100 text-red-700 border-red-200",
+  refunded: "bg-pink-100 text-pink-700 border-pink-200",
+};
 
 export const Route = createFileRoute("/order/$orderNumber")({
   loader: async ({ context, params }) => {
@@ -42,21 +54,28 @@ function OrderPage() {
   const addr = order.delivery_addresses;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="bg-muted/30">
+    <div className="mx-auto max-w-4xl px-4 py-6">
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Order</div>
-            <h1 className="font-display text-2xl font-semibold">{order.order_number}</h1>
+            <h1 className="font-display text-2xl font-bold">{order.order_number}</h1>
           </div>
-          <div className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+          <div className={`rounded-full border px-3 py-1 text-sm font-semibold ${STATUS_STYLE[status]}`}>
             {STATUS_LABEL[status]}
           </div>
         </div>
 
         {status === "sent_for_delivery" && (
-          <div className="mt-4 rounded-xl bg-primary/10 p-4 text-sm text-foreground">
-            Your order has been packed by FEA Bazar and sent for delivery.
+          <div className="mt-4 flex items-start gap-3 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800 ring-1 ring-emerald-200">
+            <Truck className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <div className="font-semibold">Your order is out for delivery</div>
+              <div className="text-emerald-700/90">
+                Your FEA Bazar order has been packed and handed to our delivery partner.
+              </div>
+            </div>
           </div>
         )}
 
@@ -141,6 +160,7 @@ function OrderPage() {
           )}
         </section>
       </div>
+    </div>
     </div>
   );
 }
