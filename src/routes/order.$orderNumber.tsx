@@ -5,7 +5,7 @@ import { formatCents } from "@/lib/format";
 import { CUSTOMER_TIMELINE, STATUS_LABEL } from "@/lib/order-status";
 import { Check, CircleDot, Package } from "lucide-react";
 
-export const Route = createFileRoute("/order/")({
+export const Route = createFileRoute("/order/$orderNumber")({
   loader: async ({ context, params }) => {
     const order = await context.queryClient.ensureQueryData({
       queryKey: ["order", params.orderNumber],
