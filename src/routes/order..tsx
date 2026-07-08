@@ -1,0 +1,146 @@
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { getOrderByNumber } from "@/lib/orders.functions";
+import { formatCents } from "@/lib/format";
+import { CUSTOMER_TIMELINE, STATUS_LABEL } from "@/lib/order-status";
+import { Check, CircleDot, Package } from "lucide-react";
+
+export const Route = createFileRoute("/order/$orderNumber")({
+  loader: async ({ context, params }) => {
+    const order = await context.queryClient.ensureQueryData({
+      queryKey: ["order", params.orderNumber],
+      queryFn: () => getOrderByNumber({ data: { orderNumber: params.orderNumber } }),
+    });
+    if (!order) throw notFound();
+  },
+  head: ({ params }) => ({ meta: [{ title: `Order ${params.orderNumber} — FEA Bazar` }] }),
+  component: OrderPage,
+  notFoundComponent: () => (
+    <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+      <h1 className="font-display text-2xl">Order not found</h1>
+      <Link to="/" className="mt-4 inline-block text-primary hover:underline">Go home</Link>
+    </div>
+  ),
+  errorComponent: () => (
+    <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+      <h1 className="font-display text-2xl">Something went wrong</h1>
+    </div>
+  ),
+});
+
+function OrderPage() {
+  const { orderNumber } = Route.useParams();
+  const { data: order } = useQuery({
+    queryKey: ["order", orderNumber],
+    queryFn: () => getOrderByNumber({ data: { orderNumber } }),
+  });
+  if (!order) return null;
+
+  const status = order.order_status;
+  const isCancelled = status === "cancelled" || status === "refunded";
+  const currentIdx = CUSTOMER_TIMELINE.indexOf(status as (typeof CUSTOMER_TIMELINE)[number]);
+  const addr = order.delivery_addresses;
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Order</div>
+            <h1 className="font-display text-2xl font-semibold">{order.order_number}</h1>
+          </div>
+          <div className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+            {STATUS_LABEL[status]}
+          </div>
+        </div>
+
+        {status === "sent_for_delivery" && (
+          <div className="mt-4 rounded-xl bg-primary/10 p-4 text-sm text-foreground">
+            Your order has been packed by FEA Bazar and sent for delivery.
+          </div>
+        )}
+
+        {!isCancelled && (
+          <ol className="mt-8 space-y-4">
+            {CUSTOMER_TIMELINE.map((s, idx) => {
+              const done = idx < currentIdx;
+              const current = idx === currentIdx;
+              return (
+                <li key={s} className="flex items-start gap-3">
+                  <div
+                    className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full ${
+                      done
+                        ? "bg-primary text-primary-foreground"
+                        : current
+                          ? "bg-accent text-accent-foreground"
+                          : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {done ? <Check className="h-3.5 w-3.5" /> : current ? <CircleDot className="h-3.5 w-3.5" /> : <span className="h-2 w-2 rounded-full bg-current" />}
+                  </div>
+                  <div className={`text-sm ${current ? "font-semibold text-foreground" : done ? "text-foreground" : "text-muted-foreground"}`}>
+                    {STATUS_LABEL[s]}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+        {isCancelled && (
+          <div className="mt-6 rounded-xl bg-destructive/10 p-4 text-sm text-destructive">
+            This order was {STATUS_LABEL[status].toLowerCase()}.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-semibold">
+            <Package className="h-5 w-5" /> Items
+          </h2>
+          <ul className="divide-y divide-border">
+            {order.items.map((it) => (
+              <li key={it.id} className="flex justify-between gap-2 py-2 text-sm">
+                <span>{it.ordered_qty} × {it.name_snapshot}</span>
+                <span className="font-medium">{formatCents(it.unit_price_cents * it.ordered_qty)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 space-y-1 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCents(order.subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatCents(order.tax)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{order.delivery_charge === 0 ? "Free" : formatCents(order.delivery_charge)}</span></div>
+            <div className="flex justify-between pt-2 text-base font-semibold"><span>Total</span><span>{formatCents(order.total)}</span></div>
+            <div className="pt-2 text-xs text-muted-foreground">Payment: Cash on Delivery · {order.payment_status}</div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border bg-card p-6">
+          <h2 className="mb-3 font-display text-lg font-semibold">Delivery address</h2>
+          {addr && (
+            <div className="text-sm text-foreground">
+              <div className="font-medium">{addr.full_name}</div>
+              <div className="text-muted-foreground">{addr.phone}</div>
+              <div className="mt-2">
+                {addr.line1}{addr.line2 ? `, ${addr.line2}` : ""}
+                <br />
+                {addr.city}, {addr.state} {addr.zip}
+              </div>
+              {addr.instructions && (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <span className="font-medium">Instructions:</span> {addr.instructions}
+                </div>
+              )}
+            </div>
+          )}
+          {order.customer_notes && (
+            <div className="mt-4 rounded-lg bg-secondary/60 p-3 text-xs">
+              <div className="font-medium">Order notes</div>
+              <div className="text-muted-foreground">{order.customer_notes}</div>
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
