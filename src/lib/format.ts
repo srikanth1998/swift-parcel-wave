@@ -1,5 +1,12 @@
-export function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+// Prices are stored in the minor unit (paise). Format as Indian Rupees.
+const INR = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2,
+});
+
+export function formatCents(paise: number): string {
+  return INR.format((paise || 0) / 100);
 }
 
 export function generateOrderNumber(): string {
