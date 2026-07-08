@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/hooks/use-cart";
 import { SiteHeader } from "@/components/site-header";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -139,12 +140,13 @@ function RootComponent() {
       <CartProvider>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <main className="flex-1">
+          <main className="flex-1 pb-16 md:pb-0">
             <Outlet />
           </main>
-          <footer className="border-t border-border bg-secondary/40 py-8 text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} FEA Bazar · Fresh groceries, packed with care
+          <footer className="hidden border-t border-border bg-secondary/40 py-8 text-center text-xs text-muted-foreground md:block">
+            © {new Date().getFullYear()} FEA Bazar · Fresh groceries, packed with care · Made in India
           </footer>
+          <MobileBottomNav />
         </div>
         <Toaster position="top-center" richColors />
       </CartProvider>
