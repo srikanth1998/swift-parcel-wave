@@ -8,7 +8,7 @@ import { formatCents } from "@/lib/format";
 import { Minus, Plus, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/product/")({
+export const Route = createFileRoute("/product/$slug")({
   loader: async ({ context, params }) => {
     const product = await context.queryClient.ensureQueryData({
       queryKey: ["product", params.slug],
