@@ -40,16 +40,16 @@ const placeOrderSchema = z.object({
   line2: z.string().trim().max(100).nullable().optional(),
   city: z.string().trim().min(1).max(100),
   state: z.string().trim().min(1).max(60),
-  zip: z.string().trim().min(3).max(20),
+  zip: z.string().trim().regex(/^\d{6}$/, "Enter a valid 6-digit PIN code"),
   deliveryInstructions: z.string().trim().max(500).nullable().optional(),
   customerNotes: z.string().trim().max(500).nullable().optional(),
   substitutionPreference: z.enum(["replace_similar", "refund_if_unavailable", "contact_me"]),
   items: z.array(cartItemSchema).min(1).max(100),
 });
 
-const TAX_RATE = 0.08;
-const DELIVERY_CHARGE_CENTS = 499;
-const FREE_DELIVERY_THRESHOLD_CENTS = 5000;
+const TAX_RATE = 0.05; // GST 5% on groceries
+const DELIVERY_CHARGE_CENTS = 4000; // ₹40
+const FREE_DELIVERY_THRESHOLD_CENTS = 49900; // free over ₹499
 
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => placeOrderSchema.parse(input))
