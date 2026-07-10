@@ -16,6 +16,7 @@ import { useAuthUser } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { listCategories } from "@/lib/products.functions";
 import { NotificationsBell } from "./notifications-bell";
+import logoUrl from "@/assets/feabazaar-logo.png";
 
 export function SiteHeader() {
   const { itemCount, subtotalCents, hydrated } = useCart();
@@ -38,11 +39,7 @@ export function SiteHeader() {
       {/* Top row */}
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:gap-6">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img
-            src={new URL("../assets/feabazaar-logo.png", import.meta.url).href}
-            alt="FEABazaar"
-            className="h-10 w-auto md:h-12"
-          />
+          <img src={logoUrl} alt="FEABazaar" className="h-10 w-auto md:h-12" />
         </Link>
 
         {/* Search — desktop/tablet */}
