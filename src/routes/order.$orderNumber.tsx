@@ -25,7 +25,7 @@ export const Route = createFileRoute("/order/$orderNumber")({
     });
     if (!order) throw notFound();
   },
-  head: ({ params }) => ({ meta: [{ title: `Order ${params.orderNumber} — FEA Bazar` }] }),
+  head: ({ params }) => ({ meta: [{ title: `Order ${params.orderNumber} — FEABazaar` }] }),
   component: OrderPage,
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
@@ -73,7 +73,7 @@ function OrderPage() {
             <div>
               <div className="font-semibold">Your order is out for delivery</div>
               <div className="text-emerald-700/90">
-                Your FEA Bazar order has been packed and handed to our delivery partner.
+                Your FEABazaar order has been packed and handed to our delivery partner.
               </div>
             </div>
           </div>

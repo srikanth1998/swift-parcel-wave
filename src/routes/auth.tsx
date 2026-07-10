@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — FEA Bazar" }] }),
+  head: () => ({ meta: [{ title: "Sign in — FEABazaar" }] }),
   component: AuthPage,
 });
 
@@ -64,7 +64,7 @@ function AuthPage() {
           {mode === "sign_in" ? "Welcome back" : "Create an account"}
         </h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">
-          {mode === "sign_in" ? "Sign in to your FEA Bazar account" : "Sign up to track your orders"}
+          {mode === "sign_in" ? "Sign in to your FEABazaar account" : "Sign up to track your orders"}
         </p>
 
         <Button variant="outline" className="mt-6 w-full" onClick={handleGoogle} type="button">

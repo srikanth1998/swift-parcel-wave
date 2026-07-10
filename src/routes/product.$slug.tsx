@@ -27,9 +27,9 @@ export const Route = createFileRoute("/product/$slug")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.product.name} — FEA Bazar` },
+          { title: `${loaderData.product.name} — FEABazaar` },
           { name: "description", content: loaderData.product.description ?? "" },
-          { property: "og:title", content: `${loaderData.product.name} — FEA Bazar` },
+          { property: "og:title", content: `${loaderData.product.name} — FEABazaar` },
           { property: "og:description", content: loaderData.product.description ?? "" },
           ...(loaderData.product.image_url ? [{ property: "og:image", content: loaderData.product.image_url }] : []),
         ]
@@ -126,7 +126,7 @@ function ProductPage() {
           {/* Info */}
           <div className="flex flex-col">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              FEA Bazar {product.categories && <>· {product.categories.name}</>}
+              FEABazaar {product.categories && <>· {product.categories.name}</>}
             </div>
             <h1 className="mt-1 font-display text-2xl font-bold text-foreground md:text-3xl">
               {product.name}

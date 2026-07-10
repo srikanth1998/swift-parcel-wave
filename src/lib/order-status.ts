@@ -30,7 +30,7 @@ export const STATUS_NOTIFICATION: Record<
 > = {
   order_placed: {
     title: "Order received",
-    body: "Thanks! We've received your FEA Bazar order.",
+    body: "Thanks! We've received your FEABazaar order.",
   },
   payment_confirmed: {
     title: "Payment confirmed",
@@ -54,7 +54,7 @@ export const STATUS_NOTIFICATION: Record<
   },
   sent_for_delivery: {
     title: "Out for delivery",
-    body: "Your FEA Bazar order is out for delivery.",
+    body: "Your FEABazaar order is out for delivery.",
   },
   cancelled: {
     title: "Order cancelled",

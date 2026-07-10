@@ -81,7 +81,7 @@ function Home() {
                 Fresh Groceries<br />Delivered to Your Door
               </h1>
               <p className="mt-3 max-w-md text-sm text-primary-foreground/85 sm:text-base">
-                Shop fresh. Save more. Daily essentials from FEA Bazar's warehouse —
+                Shop fresh. Save more. Daily essentials from FEABazaar's warehouse —
                 handpicked, carefully packed, and sent out fast.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
