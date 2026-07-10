@@ -98,8 +98,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "FEABazaar — Fresh groceries delivered" },
       { name: "twitter:description", content: "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/5e7809e5-efc1-4833-bfee-0298da5974b4" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/5e7809e5-efc1-4833-bfee-0298da5974b4" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/63368b97-e146-4b8b-ae7b-3793c898800f" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/63368b97-e146-4b8b-ae7b-3793c898800f" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
