@@ -38,10 +38,11 @@ export function SiteHeader() {
       {/* Top row */}
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:gap-6">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display text-xl font-bold shadow-sm">
-            F
-          </span>
-          <span className="hidden font-display text-xl font-bold text-foreground sm:inline">FEABazaar</span>
+          <img
+            src={new URL("../assets/feabazaar-logo.png", import.meta.url).href}
+            alt="FEABazaar"
+            className="h-10 w-auto md:h-12"
+          />
         </Link>
 
         {/* Search — desktop/tablet */}
