@@ -19,7 +19,7 @@ import { formatCents } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — FEA Bazar" }] }),
+  head: () => ({ meta: [{ title: "Checkout — FEABazaar" }] }),
   component: Checkout,
 });
 

@@ -9,7 +9,7 @@ import { Trash2, ShoppingBag, Tag, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/cart")({
-  head: () => ({ meta: [{ title: "Your cart — FEA Bazar" }] }),
+  head: () => ({ meta: [{ title: "Your cart — FEABazaar" }] }),
   component: CartPage,
 });
 

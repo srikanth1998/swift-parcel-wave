@@ -60,7 +60,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          FEA Bazar
+          FEABazaar
         </div>
         <Link
           to="/product/$slug"

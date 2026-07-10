@@ -7,7 +7,7 @@ import { Package } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/orders")({
-  head: () => ({ meta: [{ title: "My orders — FEA Bazar" }] }),
+  head: () => ({ meta: [{ title: "My orders — FEABazaar" }] }),
   component: MyOrders,
 });
 

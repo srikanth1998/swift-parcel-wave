@@ -41,7 +41,7 @@ export function SiteHeader() {
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display text-xl font-bold shadow-sm">
             F
           </span>
-          <span className="hidden font-display text-xl font-bold text-foreground sm:inline">FEA Bazar</span>
+          <span className="hidden font-display text-xl font-bold text-foreground sm:inline">FEABazaar</span>
         </Link>
 
         {/* Search — desktop/tablet */}

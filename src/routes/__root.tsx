@@ -82,22 +82,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FEA Bazar — Fresh groceries delivered" },
+      { title: "FEABazaar — Fresh groceries delivered" },
       {
         name: "description",
         content:
-          "Order fresh groceries from FEA Bazar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
+          "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
       },
-      { property: "og:title", content: "FEA Bazar — Fresh groceries delivered" },
+      { property: "og:title", content: "FEABazaar — Fresh groceries delivered" },
       {
         property: "og:description",
         content:
-          "Order fresh groceries from FEA Bazar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
+          "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "FEA Bazar — Fresh groceries delivered" },
-      { name: "twitter:description", content: "Order fresh groceries from FEA Bazar. Handpicked produce, dairy, pantry staples, and more, delivered to your door." },
+      { name: "twitter:title", content: "FEABazaar — Fresh groceries delivered" },
+      { name: "twitter:description", content: "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/5e7809e5-efc1-4833-bfee-0298da5974b4" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/5e7809e5-efc1-4833-bfee-0298da5974b4" },
     ],
@@ -147,7 +147,7 @@ function RootComponent() {
             <Outlet />
           </main>
           <footer className="hidden border-t border-border bg-secondary/40 py-8 text-center text-xs text-muted-foreground md:block">
-            © {new Date().getFullYear()} FEA Bazar · Fresh groceries, packed with care · Made in India
+            © {new Date().getFullYear()} FEABazaar · Fresh groceries, packed with care · Made in India
           </footer>
           <MobileBottomNav />
         </div>
