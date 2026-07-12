@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { ShoppingCart, User, LogOut, Package, Search, ChevronDown, MapPin, Sparkles, Flame } from "lucide-react";
+import { ShoppingCart, User, LogOut, Package, Search, ChevronDown, MapPin, Sparkles, Flame, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,19 @@ export function SiteHeader() {
     queryKey: ["categories"],
     queryFn: () => listCategories(),
   });
+  const { data: roles = [] } = useQuery({
+    queryKey: ["my-roles", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id);
+      if (error) return [];
+      return data.map((row) => row.role);
+    },
+  });
+  const isAdmin = roles.includes("admin");
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -72,6 +85,20 @@ export function SiteHeader() {
                     My orders
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/referrals">
+                    <Network className="mr-2 h-4 w-4" />
+                    Referrals
+                  </Link>
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin/referrals">
+                      <Network className="mr-2 h-4 w-4" />
+                      Admin referrals
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={async () => {

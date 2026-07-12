@@ -7,16 +7,24 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    ref: typeof search.ref === "string" ? search.ref : undefined,
+  }),
   head: () => ({ meta: [{ title: "Sign in — FEABazaar" }] }),
   component: AuthPage,
 });
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"sign_in" | "sign_up">("sign_in");
+  const search = Route.useSearch();
+  const initialReferralCode = search.ref?.trim().toUpperCase() ?? "";
+  const [mode, setMode] = useState<"sign_in" | "sign_up">(
+    initialReferralCode ? "sign_up" : "sign_in",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [referralCode, setReferralCode] = useState(initialReferralCode);
   const [loading, setLoading] = useState(false);
 
   const handleGoogle = async () => {
@@ -35,15 +43,24 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "sign_up") {
-        const { error } = await supabase.auth.signUp({
+        const normalizedReferralCode = referralCode.trim().toUpperCase();
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName },
+            data: {
+              full_name: fullName,
+              ...(normalizedReferralCode ? { referral_code: normalizedReferralCode } : {}),
+            },
           },
         });
         if (error) throw error;
+        if (!data.session) {
+          toast.success("Account created. Check your email to confirm your account.");
+          setMode("sign_in");
+          return;
+        }
         toast.success("Account created. You can start shopping.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -81,6 +98,18 @@ function AuthPage() {
             <div>
               <Label htmlFor="fullName">Full name</Label>
               <Input id="fullName" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </div>
+          )}
+          {mode === "sign_up" && (
+            <div>
+              <Label htmlFor="referralCode">Referral code</Label>
+              <Input
+                id="referralCode"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                placeholder="Optional"
+                autoCapitalize="characters"
+              />
             </div>
           )}
           <div>

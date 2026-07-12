@@ -333,12 +333,73 @@ export type Database = {
           },
         ]
       }
+      referral_commissions: {
+        Row: {
+          approved_at: string | null
+          beneficiary_user_id: string
+          buyer_id: string
+          cancelled_at: string | null
+          commission_amount_cents: number
+          commission_percentage: number
+          created_at: string
+          id: string
+          order_amount_cents: number
+          order_id: string
+          paid_at: string | null
+          referral_level: number
+          status: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          beneficiary_user_id: string
+          buyer_id: string
+          cancelled_at?: string | null
+          commission_amount_cents: number
+          commission_percentage: number
+          created_at?: string
+          id?: string
+          order_amount_cents: number
+          order_id: string
+          paid_at?: string | null
+          referral_level: number
+          status?: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          beneficiary_user_id?: string
+          buyer_id?: string
+          cancelled_at?: string | null
+          commission_amount_cents?: number
+          commission_percentage?: number
+          created_at?: string
+          id?: string
+          order_amount_cents?: number
+          order_id?: string
+          paid_at?: string | null
+          referral_level?: number
+          status?: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
           full_name: string | null
           id: string
           phone: string | null
+          referral_code: string
+          referred_by_user_id: string | null
           updated_at: string
         }
         Insert: {
@@ -346,6 +407,8 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          referral_code?: string
+          referred_by_user_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -353,6 +416,8 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          referral_code?: string
+          referred_by_user_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -380,15 +445,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      referral_earnings: {
+        Row: {
+          approved_cents: number | null
+          beneficiary_user_id: string | null
+          commission_count: number | null
+          paid_cents: number | null
+          pending_cents: number | null
+          total_earned_cents: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      generate_referral_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      process_referral_commissions_for_order: {
+        Args: { _order_id: string }
+        Returns: undefined
       }
     }
     Enums: {
@@ -401,10 +484,16 @@ export type Database = {
         | "packing"
         | "ready_for_delivery"
         | "sent_for_delivery"
+        | "completed"
         | "cancelled"
         | "refunded"
       payment_method_enum: "cod"
       payment_status_enum: "pending" | "confirmed" | "failed" | "refunded"
+      referral_commission_status:
+        | "pending"
+        | "approved"
+        | "paid"
+        | "cancelled"
       substitution_pref_enum:
         | "replace_similar"
         | "refund_if_unavailable"
@@ -545,11 +634,18 @@ export const Constants = {
         "packing",
         "ready_for_delivery",
         "sent_for_delivery",
+        "completed",
         "cancelled",
         "refunded",
       ],
       payment_method_enum: ["cod"],
       payment_status_enum: ["pending", "confirmed", "failed", "refunded"],
+      referral_commission_status: [
+        "pending",
+        "approved",
+        "paid",
+        "cancelled",
+      ],
       substitution_pref_enum: [
         "replace_similar",
         "refund_if_unavailable",

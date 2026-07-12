@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, LayoutGrid, ShoppingCart, User } from "lucide-react";
+import { Home, LayoutGrid, Network, ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuthUser } from "@/hooks/use-auth";
 
@@ -18,11 +18,21 @@ export function MobileBottomNav() {
       icon: User,
       match: (p: string) => p.startsWith("/orders") || p.startsWith("/auth"),
     },
-  ] as const;
+    ...(user
+      ? [
+          {
+            to: "/referrals",
+            label: "Refer",
+            icon: Network,
+            match: (p: string) => p.startsWith("/referrals"),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
-      <ul className="mx-auto grid max-w-md grid-cols-4">
+      <ul className={`mx-auto grid max-w-md ${items.length === 5 ? "grid-cols-5" : "grid-cols-4"}`}>
         {items.map((it) => {
           const active = it.match(pathname);
           const Icon = it.icon;

@@ -10,6 +10,7 @@ export const CUSTOMER_TIMELINE: OrderStatus[] = [
   "packing",
   "ready_for_delivery",
   "sent_for_delivery",
+  "completed",
 ];
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -20,6 +21,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   packing: "Packing",
   ready_for_delivery: "Ready for Delivery",
   sent_for_delivery: "Sent for Delivery",
+  completed: "Completed",
   cancelled: "Cancelled",
   refunded: "Refunded",
 };
@@ -55,6 +57,10 @@ export const STATUS_NOTIFICATION: Record<
   sent_for_delivery: {
     title: "Out for delivery",
     body: "Your FEABazaar order is out for delivery.",
+  },
+  completed: {
+    title: "Order completed",
+    body: "Your FEABazaar order has been completed.",
   },
   cancelled: {
     title: "Order cancelled",

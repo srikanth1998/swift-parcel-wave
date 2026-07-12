@@ -13,6 +13,7 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   packing: "bg-yellow-100 text-yellow-800 border-yellow-200",
   ready_for_delivery: "bg-emerald-100 text-emerald-700 border-emerald-200",
   sent_for_delivery: "bg-emerald-600 text-white border-emerald-700",
+  completed: "bg-green-100 text-green-700 border-green-200",
   cancelled: "bg-red-100 text-red-700 border-red-200",
   refunded: "bg-pink-100 text-pink-700 border-pink-200",
 };
