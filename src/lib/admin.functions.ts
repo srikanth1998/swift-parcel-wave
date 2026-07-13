@@ -438,17 +438,27 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
     await requireRole(["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("profiles")
-          .select("id, full_name, phone, referral_code, referred_by_user_id, created_at")
-          .order("created_at", { ascending: false })
-          .limit(500),
-        supabaseAdmin.from("user_roles").select("user_id, role"),
-      ]);
+    const [
+      { data: profiles, error: profilesError },
+      { data: roles, error: rolesError },
+      { data: authList, error: authError },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, phone, referral_code, referred_by_user_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500),
+      supabaseAdmin.from("user_roles").select("user_id, role"),
+      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    ]);
     if (profilesError) throw new Error(profilesError.message);
     if (rolesError) throw new Error(rolesError.message);
+    if (authError) throw new Error(authError.message);
+
+    const emailByUser = new Map<string, string | null>();
+    (authList?.users ?? []).forEach((u) => {
+      emailByUser.set(u.id, u.email ?? null);
+    });
 
     const profileRows = profiles ?? [];
     const profileIds = profileRows.map((profile) => profile.id);
@@ -482,7 +492,8 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
     return profileRows
       .filter((profile) => {
         if (!search) return true;
-        return [profile.full_name, profile.phone, profile.referral_code]
+        const email = emailByUser.get(profile.id);
+        return [profile.full_name, profile.phone, profile.referral_code, email]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(search));
       })
@@ -491,6 +502,7 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
         return {
           id: profile.id,
           fullName: displayName(profile),
+          email: emailByUser.get(profile.id) ?? null,
           phone: profile.phone,
           referralCode: profile.referral_code,
           referredByUserId: profile.referred_by_user_id,
