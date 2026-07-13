@@ -444,13 +444,13 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
 
     const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] =
       await Promise.all([
-      supabaseAdmin
-        .from("profiles")
-        .select("id, full_name, phone, referral_code, referred_by_user_id, created_at")
-        .order("created_at", { ascending: false })
-        .limit(500),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
-    ]);
+        supabaseAdmin
+          .from("profiles")
+          .select("id, full_name, phone, referral_code, referred_by_user_id, created_at")
+          .order("created_at", { ascending: false })
+          .limit(500),
+        supabaseAdmin.from("user_roles").select("user_id, role"),
+      ]);
     if (profilesError) throw new Error(profilesError.message);
     if (rolesError) throw new Error(rolesError.message);
 

@@ -31,7 +31,11 @@ function AdminCustomersPage() {
   const [search, setSearch] = useState("");
   const filters = useMemo(() => ({ search }), [search]);
 
-  const { data: customers = [], isLoading, error } = useQuery({
+  const {
+    data: customers = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-customers", filters],
     queryFn: () => getAdminCustomers({ data: filters }),
     refetchInterval: 30_000,
@@ -41,13 +45,9 @@ function AdminCustomersPage() {
   useEffect(() => {
     const channel = supabase
       .channel("admin-customers-profiles")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "profiles" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
-        },
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "profiles" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -55,8 +55,7 @@ function AdminCustomersPage() {
   }, [queryClient]);
 
   const roleMutation = useMutation({
-    mutationFn: (input: { userId: string; roles: Role[] }) =>
-      updateAdminUserRoles({ data: input }),
+    mutationFn: (input: { userId: string; roles: Role[] }) => updateAdminUserRoles({ data: input }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
       toast.success("Roles updated");
@@ -65,14 +64,15 @@ function AdminCustomersPage() {
   });
 
   const toggleRole = (userId: string, roles: Role[], role: "staff" | "admin") => {
-    const next = roles.includes(role)
-      ? roles.filter((item) => item !== role)
-      : [...roles, role];
+    const next = roles.includes(role) ? roles.filter((item) => item !== role) : [...roles, role];
     roleMutation.mutate({ userId, roles: [...new Set<Role>(["customer", ...next])] });
   };
 
   return (
-    <AdminPageFrame title="Customers" description="Review customer activity and manage staff/admin access.">
+    <AdminPageFrame
+      title="Customers"
+      description="Review customer activity and manage staff/admin access."
+    >
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Customers could not load."}
@@ -122,11 +122,17 @@ function AdminCustomersPage() {
                     <TableRow key={customer.id}>
                       <TableCell>
                         <div className="font-medium">{customer.fullName}</div>
-                        <div className="text-xs text-muted-foreground">{customer.email ?? "No email"}</div>
-                        <div className="text-xs text-muted-foreground">{customer.phone ?? "No phone"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {customer.email ?? "No email"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {customer.phone ?? "No phone"}
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <code className="rounded bg-secondary px-2 py-1 text-xs">{customer.referralCode}</code>
+                        <code className="rounded bg-secondary px-2 py-1 text-xs">
+                          {customer.referralCode}
+                        </code>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -147,7 +153,9 @@ function AdminCustomersPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">{customer.orderCount}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCents(customer.spendCents)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCents(customer.spendCents)}
+                      </TableCell>
                       <TableCell>{format(new Date(customer.createdAt), "MMM d, yyyy")}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-2">
@@ -155,7 +163,9 @@ function AdminCustomersPage() {
                             size="sm"
                             variant={customer.roles.includes("staff") ? "secondary" : "outline"}
                             disabled={roleMutation.isPending}
-                            onClick={() => toggleRole(customer.id, customer.roles as Role[], "staff")}
+                            onClick={() =>
+                              toggleRole(customer.id, customer.roles as Role[], "staff")
+                            }
                           >
                             <UserCog />
                             Staff
@@ -164,7 +174,9 @@ function AdminCustomersPage() {
                             size="sm"
                             variant={customer.roles.includes("admin") ? "secondary" : "outline"}
                             disabled={roleMutation.isPending}
-                            onClick={() => toggleRole(customer.id, customer.roles as Role[], "admin")}
+                            onClick={() =>
+                              toggleRole(customer.id, customer.roles as Role[], "admin")
+                            }
                           >
                             <ShieldCheck />
                             Admin
