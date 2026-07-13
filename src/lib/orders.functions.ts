@@ -7,6 +7,7 @@ import { generateOrderNumber } from "./format";
 import { STATUS_NOTIFICATION } from "./order-status";
 import { fetchStoreSettings } from "./store-settings";
 import { evaluateCoupon } from "./coupon-eval";
+import { computeWalletBalance } from "./wallet.functions";
 
 function publicClient() {
   return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -44,6 +45,7 @@ const placeOrderSchema = z.object({
   customerNotes: z.string().trim().max(500).nullable().optional(),
   substitutionPreference: z.enum(["replace_similar", "refund_if_unavailable", "contact_me"]),
   couponCode: z.string().trim().max(40).nullable().optional(),
+  walletCreditCents: z.number().int().min(0).max(10_000_000).optional().default(0),
   items: z.array(cartItemSchema).min(1).max(100),
 });
 
@@ -101,10 +103,21 @@ export const placeOrder = createServerFn({ method: "POST" })
     }
 
     const taxableBase = Math.max(subtotal - discount, 0);
-    const tax = Math.round((taxableBase * settings.taxRateBps) / 10000);
+
+    // Wallet credit (referral earnings). Signed-in users only, and capped at
+    // the (subtotal − discount) so it never covers tax or delivery, and at the
+    // caller's actual spendable balance.
+    let walletCredit = 0;
+    if (userId && data.walletCreditCents && data.walletCreditCents > 0) {
+      const balance = await computeWalletBalance(userId);
+      walletCredit = Math.max(0, Math.min(data.walletCreditCents, balance, taxableBase));
+    }
+
+    const afterWallet = Math.max(taxableBase - walletCredit, 0);
+    const tax = Math.round((afterWallet * settings.taxRateBps) / 10000);
     const delivery_charge =
       subtotal >= settings.freeDeliveryThresholdCents ? 0 : settings.deliveryChargeCents;
-    const total = taxableBase + tax + delivery_charge;
+    const total = afterWallet + tax + delivery_charge;
 
     // IDs are generated here instead of relying on INSERT ... RETURNING:
     // guests (anon role) may INSERT under RLS but have no SELECT policy, so a
@@ -138,6 +151,7 @@ export const placeOrder = createServerFn({ method: "POST" })
       payment_status: "pending",
       subtotal,
       discount,
+      wallet_credit_cents: walletCredit,
       tax,
       delivery_charge,
       total,
@@ -216,7 +230,7 @@ export const placeOrder = createServerFn({ method: "POST" })
   });
 
 const ORDER_SELECT =
-  "id, order_number, order_status, payment_method, payment_status, subtotal, discount, coupon_code, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
+  "id, order_number, order_status, payment_method, payment_status, subtotal, discount, coupon_code, wallet_credit_cents, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
 
 export const getOrderByNumber = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => z.object({ orderNumber: z.string() }).parse(input))
