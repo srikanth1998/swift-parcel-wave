@@ -67,7 +67,7 @@ function AdminCustomersPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 className="pl-9"
-                placeholder="Search name, phone, or referral code"
+                placeholder="Search name, email, phone, or referral code"
               />
             </div>
           </section>
@@ -103,6 +103,7 @@ function AdminCustomersPage() {
                     <TableRow key={customer.id}>
                       <TableCell>
                         <div className="font-medium">{customer.fullName}</div>
+                        <div className="text-xs text-muted-foreground">{customer.email ?? "No email"}</div>
                         <div className="text-xs text-muted-foreground">{customer.phone ?? "No phone"}</div>
                       </TableCell>
                       <TableCell>
