@@ -357,7 +357,7 @@ export const updateProductRow = createServerFn({ method: "POST" })
       .single();
     if (readError || !current) throw new Error(readError?.message ?? "Product not found");
 
-    const { error: updateError } = await supabaseAdmin
+    const { data: updated, error: updateError } = await supabaseAdmin
       .from("products")
       .update({
         name: data.name,
@@ -367,9 +367,16 @@ export const updateProductRow = createServerFn({ method: "POST" })
         stock_qty: data.stockQty,
         is_active: data.isActive,
         is_featured: data.isFeatured,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .select("id");
     if (updateError) throw new Error(updateError.message);
+    if (!updated || updated.length === 0) {
+      throw new Error(
+        "Product row was not updated — server role may be misconfigured (service key missing).",
+      );
+    }
 
     if (data.stockQty !== current.stock_qty) {
       await supabaseAdmin.from("inventory_adjustments").insert({
@@ -396,12 +403,18 @@ export const bulkSetProductActive = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requireRole(["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
+    const { data: updated, error } = await supabaseAdmin
       .from("products")
-      .update({ is_active: data.isActive })
-      .in("id", data.ids);
+      .update({ is_active: data.isActive, updated_at: new Date().toISOString() })
+      .in("id", data.ids)
+      .select("id");
     if (error) throw new Error(error.message);
-    return { ok: true };
+    if (!updated || updated.length === 0) {
+      throw new Error(
+        "No products were updated — server role may be misconfigured (service key missing).",
+      );
+    }
+    return { ok: true, updated: updated.length };
   });
 
 const categoryInputSchema = z.object({
