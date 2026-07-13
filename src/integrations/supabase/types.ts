@@ -44,6 +44,102 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          discount_cents: number
+          id: string
+          order_id: string
+          user_id: string | null
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          discount_cents: number
+          id?: string
+          order_id: string
+          user_id?: string | null
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          discount_cents?: number
+          id?: string
+          order_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_discount_cents: number | null
+          min_order_cents: number
+          per_user_limit: number | null
+          starts_at: string | null
+          type: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at: string
+          usage_limit: number | null
+          used_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_cents?: number | null
+          min_order_cents?: number
+          per_user_limit?: number | null
+          starts_at?: string | null
+          type: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_cents?: number | null
+          min_order_cents?: number
+          per_user_limit?: number | null
+          starts_at?: string | null
+          type?: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value?: number
+        }
+        Relationships: []
+      }
       delivery_addresses: {
         Row: {
           city: string
@@ -88,6 +184,50 @@ export type Database = {
           zip?: string
         }
         Relationships: []
+      }
+      inventory_adjustments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delta: number
+          id: string
+          new_qty: number
+          note: string | null
+          previous_qty: number
+          product_id: string
+          reason: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          id?: string
+          new_qty: number
+          note?: string | null
+          previous_qty: number
+          product_id: string
+          reason: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          id?: string
+          new_qty?: number
+          note?: string | null
+          previous_qty?: number
+          product_id?: string
+          reason?: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -194,6 +334,8 @@ export type Database = {
       orders: {
         Row: {
           confirmed_at: string | null
+          coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           customer_id: string | null
           customer_notes: string | null
@@ -219,6 +361,8 @@ export type Database = {
         }
         Insert: {
           confirmed_at?: string | null
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_notes?: string | null
@@ -244,6 +388,8 @@ export type Database = {
         }
         Update: {
           confirmed_at?: string | null
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_notes?: string | null
@@ -268,6 +414,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_delivery_address_id_fkey"
             columns: ["delivery_address_id"]
@@ -339,6 +492,8 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          referral_code: string
+          referred_by_user_id: string | null
           updated_at: string
         }
         Insert: {
@@ -346,6 +501,8 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          referral_code: string
+          referred_by_user_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -353,7 +510,104 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          referral_code?: string
+          referred_by_user_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      referral_commissions: {
+        Row: {
+          approved_at: string | null
+          beneficiary_user_id: string
+          buyer_id: string
+          cancelled_at: string | null
+          commission_amount_cents: number
+          commission_percentage: number
+          created_at: string
+          id: string
+          order_amount_cents: number
+          order_id: string
+          paid_at: string | null
+          referral_level: number
+          status: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          beneficiary_user_id: string
+          buyer_id: string
+          cancelled_at?: string | null
+          commission_amount_cents: number
+          commission_percentage: number
+          created_at?: string
+          id?: string
+          order_amount_cents: number
+          order_id: string
+          paid_at?: string | null
+          referral_level: number
+          status?: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          beneficiary_user_id?: string
+          buyer_id?: string
+          cancelled_at?: string | null
+          commission_amount_cents?: number
+          commission_percentage?: number
+          created_at?: string
+          id?: string
+          order_amount_cents?: number
+          order_id?: string
+          paid_at?: string | null
+          referral_level?: number
+          status?: Database["public"]["Enums"]["referral_commission_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_settings: {
+        Row: {
+          delivery_charge_cents: number
+          free_delivery_threshold_cents: number
+          id: boolean
+          store_name: string
+          support_email: string | null
+          support_phone: string | null
+          tax_rate_bps: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          delivery_charge_cents?: number
+          free_delivery_threshold_cents?: number
+          id?: boolean
+          store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          tax_rate_bps?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          delivery_charge_cents?: number
+          free_delivery_threshold_cents?: number
+          id?: boolean
+          store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          tax_rate_bps?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -380,9 +634,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      referral_earnings: {
+        Row: {
+          approved_cents: number | null
+          beneficiary_user_id: string | null
+          commission_count: number | null
+          paid_cents: number | null
+          pending_cents: number | null
+          total_earned_cents: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      generate_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -390,9 +655,28 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_referral_eligible_order: {
+        Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
+        Returns: boolean
+      }
+      process_referral_commissions_for_order: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      record_order_stock_decrement: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "customer" | "staff" | "admin"
+      coupon_type_enum: "percentage" | "fixed"
+      inventory_reason_enum:
+        | "restock"
+        | "correction"
+        | "order"
+        | "damage"
+        | "return"
       order_status_enum:
         | "order_placed"
         | "payment_confirmed"
@@ -403,8 +687,10 @@ export type Database = {
         | "sent_for_delivery"
         | "cancelled"
         | "refunded"
+        | "completed"
       payment_method_enum: "cod"
       payment_status_enum: "pending" | "confirmed" | "failed" | "refunded"
+      referral_commission_status: "pending" | "approved" | "paid" | "cancelled"
       substitution_pref_enum:
         | "replace_similar"
         | "refund_if_unavailable"
@@ -537,6 +823,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["customer", "staff", "admin"],
+      coupon_type_enum: ["percentage", "fixed"],
+      inventory_reason_enum: [
+        "restock",
+        "correction",
+        "order",
+        "damage",
+        "return",
+      ],
       order_status_enum: [
         "order_placed",
         "payment_confirmed",
@@ -547,9 +841,11 @@ export const Constants = {
         "sent_for_delivery",
         "cancelled",
         "refunded",
+        "completed",
       ],
       payment_method_enum: ["cod"],
       payment_status_enum: ["pending", "confirmed", "failed", "refunded"],
+      referral_commission_status: ["pending", "approved", "paid", "cancelled"],
       substitution_pref_enum: [
         "replace_similar",
         "refund_if_unavailable",
