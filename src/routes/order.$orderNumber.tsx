@@ -153,6 +153,12 @@ function OrderPage() {
                   <span>−{formatCents(order.discount)}</span>
                 </div>
               )}
+              {order.wallet_credit_cents > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Wallet credit</span>
+                  <span>−{formatCents(order.wallet_credit_cents)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax</span>
                 <span>{formatCents(order.tax)}</span>

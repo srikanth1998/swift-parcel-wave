@@ -358,6 +358,7 @@ export type Database = {
           tax: number
           total: number
           updated_at: string
+          wallet_credit_cents: number
         }
         Insert: {
           confirmed_at?: string | null
@@ -385,6 +386,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          wallet_credit_cents?: number
         }
         Update: {
           confirmed_at?: string | null
@@ -412,6 +414,7 @@ export type Database = {
           tax?: number
           total?: number
           updated_at?: string
+          wallet_credit_cents?: number
         }
         Relationships: [
           {
@@ -648,6 +651,7 @@ export type Database = {
     }
     Functions: {
       generate_referral_code: { Args: never; Returns: string }
+      get_wallet_balance: { Args: { _user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

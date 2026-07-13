@@ -7,6 +7,7 @@ import { useAuthUser } from "@/hooks/use-auth";
 import { placeOrder } from "@/lib/orders.functions";
 import { getStoreSettings } from "@/lib/settings.functions";
 import { validateCoupon } from "@/lib/coupons.functions";
+import { getWalletBalance } from "@/lib/wallet.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,13 @@ function Checkout() {
     queryKey: ["store-settings"],
     queryFn: () => getStoreSettings(),
   });
+  const { data: wallet } = useQuery({
+    queryKey: ["wallet-balance", user?.id ?? "guest"],
+    queryFn: () => getWalletBalance(),
+    enabled: !!user,
+  });
+  const walletBalance = wallet?.balanceCents ?? 0;
+  const [useWallet, setUseWallet] = useState(false);
   const taxRateBps = settings?.taxRateBps ?? 500;
   const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
   const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
@@ -76,9 +84,11 @@ function Checkout() {
 
   const discount = Math.min(coupon?.discountCents ?? 0, subtotalCents);
   const taxableBase = Math.max(subtotalCents - discount, 0);
-  const tax = Math.round((taxableBase * taxRateBps) / 10000);
+  const walletApplied = useWallet && user ? Math.min(walletBalance, taxableBase) : 0;
+  const afterWallet = Math.max(taxableBase - walletApplied, 0);
+  const tax = Math.round((afterWallet * taxRateBps) / 10000);
   const deliveryCharge = subtotalCents >= freeThresholdCents ? 0 : deliveryChargeCents;
-  const total = taxableBase + tax + deliveryCharge;
+  const total = afterWallet + tax + deliveryCharge;
 
   const applyCoupon = async () => {
     const code = couponInput.trim();
@@ -118,6 +128,7 @@ function Checkout() {
           deliveryInstructions: form.deliveryInstructions || null,
           customerNotes: form.customerNotes || null,
           couponCode: coupon?.code ?? null,
+          walletCreditCents: walletApplied,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
         },
       });
@@ -341,6 +352,33 @@ function Checkout() {
           <div className="flex justify-between text-sm text-emerald-700">
             <span>Discount</span>
             <span>−{formatCents(discount)}</span>
+          </div>
+        )}
+        {user && walletBalance > 0 && (
+          <div className="mt-3 rounded-lg border border-border bg-secondary/40 p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-primary"
+                checked={useWallet}
+                onChange={(e) => setUseWallet(e.target.checked)}
+              />
+              <span className="flex-1">
+                <span className="font-medium">Use referral wallet</span>
+                <span className="ml-1 text-muted-foreground">
+                  ({formatCents(walletBalance)} available)
+                </span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Applied to item total. Cannot cover tax or delivery.
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
+        {walletApplied > 0 && (
+          <div className="mt-2 flex justify-between text-sm text-emerald-700">
+            <span>Wallet credit</span>
+            <span>−{formatCents(walletApplied)}</span>
           </div>
         )}
         <Row label={`GST (${(taxRateBps / 100).toString()}%)`} value={formatCents(tax)} />
