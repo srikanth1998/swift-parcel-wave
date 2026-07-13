@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { ShoppingCart, User, LogOut, Package, Search, ChevronDown, MapPin, Sparkles, Flame, Network } from "lucide-react";
+import { ShoppingCart, User, LogOut, Package, Search, ChevronDown, MapPin, Sparkles, Flame, Network, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,9 +93,9 @@ export function SiteHeader() {
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem asChild>
-                    <Link to="/admin/referrals">
-                      <Network className="mr-2 h-4 w-4" />
-                      Admin referrals
+                    <Link to="/admin">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Back office
                     </Link>
                   </DropdownMenuItem>
                 )}

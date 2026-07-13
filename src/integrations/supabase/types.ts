@@ -44,6 +44,182 @@ export type Database = {
         }
         Relationships: []
       }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          max_discount_cents: number | null
+          min_order_cents: number
+          per_user_limit: number | null
+          starts_at: string | null
+          type: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at: string
+          usage_limit: number | null
+          used_count: number
+          value: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_cents?: number | null
+          min_order_cents?: number
+          per_user_limit?: number | null
+          starts_at?: string | null
+          type: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_discount_cents?: number | null
+          min_order_cents?: number
+          per_user_limit?: number | null
+          starts_at?: string | null
+          type?: Database["public"]["Enums"]["coupon_type_enum"]
+          updated_at?: string
+          usage_limit?: number | null
+          used_count?: number
+          value?: number
+        }
+        Relationships: []
+      }
+      coupon_redemptions: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          discount_cents: number
+          id: string
+          order_id: string
+          user_id: string | null
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          discount_cents: number
+          id?: string
+          order_id: string
+          user_id?: string | null
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          discount_cents?: number
+          id?: string
+          order_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_adjustments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delta: number
+          id: string
+          new_qty: number
+          note: string | null
+          previous_qty: number
+          product_id: string
+          reason: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delta: number
+          id?: string
+          new_qty: number
+          note?: string | null
+          previous_qty: number
+          product_id: string
+          reason: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delta?: number
+          id?: string
+          new_qty?: number
+          note?: string | null
+          previous_qty?: number
+          product_id?: string
+          reason?: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_settings: {
+        Row: {
+          delivery_charge_cents: number
+          free_delivery_threshold_cents: number
+          id: boolean
+          store_name: string
+          support_email: string | null
+          support_phone: string | null
+          tax_rate_bps: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          delivery_charge_cents?: number
+          free_delivery_threshold_cents?: number
+          id?: boolean
+          store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          tax_rate_bps?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          delivery_charge_cents?: number
+          free_delivery_threshold_cents?: number
+          id?: boolean
+          store_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          tax_rate_bps?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       delivery_addresses: {
         Row: {
           city: string
@@ -194,6 +370,8 @@ export type Database = {
       orders: {
         Row: {
           confirmed_at: string | null
+          coupon_code: string | null
+          coupon_id: string | null
           created_at: string
           customer_id: string | null
           customer_notes: string | null
@@ -219,6 +397,8 @@ export type Database = {
         }
         Insert: {
           confirmed_at?: string | null
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_notes?: string | null
@@ -244,6 +424,8 @@ export type Database = {
         }
         Update: {
           confirmed_at?: string | null
+          coupon_code?: string | null
+          coupon_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_notes?: string | null
@@ -268,6 +450,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_delivery_address_id_fkey"
             columns: ["delivery_address_id"]
@@ -473,9 +662,20 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
+      record_order_stock_decrement: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "customer" | "staff" | "admin"
+      coupon_type_enum: "percentage" | "fixed"
+      inventory_reason_enum:
+        | "restock"
+        | "correction"
+        | "order"
+        | "damage"
+        | "return"
       order_status_enum:
         | "order_placed"
         | "payment_confirmed"
@@ -626,6 +826,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["customer", "staff", "admin"],
+      coupon_type_enum: ["percentage", "fixed"],
+      inventory_reason_enum: ["restock", "correction", "order", "damage", "return"],
       order_status_enum: [
         "order_placed",
         "payment_confirmed",

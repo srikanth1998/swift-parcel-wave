@@ -1,9 +1,12 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { useAuthUser } from "@/hooks/use-auth";
 import { placeOrder } from "@/lib/orders.functions";
+import { getStoreSettings } from "@/lib/settings.functions";
+import { validateCoupon } from "@/lib/coupons.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,16 +26,26 @@ export const Route = createFileRoute("/checkout")({
   component: Checkout,
 });
 
-const TAX_RATE = 0.05; // GST 5%
-const DELIVERY_CENTS = 4000; // ₹40
-const FREE_THRESHOLD = 49900; // free over ₹499
-
 function Checkout() {
   const { items, subtotalCents, hydrated, clear } = useCart();
   const { user } = useAuthUser();
   const navigate = useNavigate();
   const placeOrderFn = useServerFn(placeOrder);
+  const validateCouponFn = useServerFn(validateCoupon);
   const [submitting, setSubmitting] = useState(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["store-settings"],
+    queryFn: () => getStoreSettings(),
+  });
+  const taxRateBps = settings?.taxRateBps ?? 500;
+  const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
+  const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
+
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discountCents: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponChecking, setCouponChecking] = useState(false);
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -61,9 +74,38 @@ function Checkout() {
 
   if (!hydrated || items.length === 0) return <div className="mx-auto max-w-4xl px-4 py-16" />;
 
-  const tax = Math.round(subtotalCents * TAX_RATE);
-  const deliveryCharge = subtotalCents >= FREE_THRESHOLD ? 0 : DELIVERY_CENTS;
-  const total = subtotalCents + tax + deliveryCharge;
+  const discount = Math.min(coupon?.discountCents ?? 0, subtotalCents);
+  const taxableBase = Math.max(subtotalCents - discount, 0);
+  const tax = Math.round((taxableBase * taxRateBps) / 10000);
+  const deliveryCharge = subtotalCents >= freeThresholdCents ? 0 : deliveryChargeCents;
+  const total = taxableBase + tax + deliveryCharge;
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponChecking(true);
+    setCouponError(null);
+    try {
+      const result = await validateCouponFn({ data: { code, subtotalCents } });
+      if (result.ok) {
+        setCoupon({ code: result.code, discountCents: result.discountCents });
+        setCouponError(null);
+      } else {
+        setCoupon(null);
+        setCouponError(result.reason);
+      }
+    } catch (err) {
+      setCouponError(err instanceof Error ? err.message : "Could not check that coupon.");
+    } finally {
+      setCouponChecking(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +117,7 @@ function Checkout() {
           line2: form.line2 || null,
           deliveryInstructions: form.deliveryInstructions || null,
           customerNotes: form.customerNotes || null,
+          couponCode: coupon?.code ?? null,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
         },
       });
@@ -180,9 +223,54 @@ function Checkout() {
           ))}
         </ul>
         <div className="my-4 h-px bg-border" />
+
+        <div>
+          {coupon ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+              <span className="font-medium text-emerald-800">
+                Coupon <span className="font-mono">{coupon.code}</span> applied
+              </span>
+              <button type="button" onClick={removeCoupon} className="text-xs font-medium text-emerald-700 hover:underline">
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={couponInput}
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                placeholder="Coupon code"
+                maxLength={40}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyCoupon();
+                  }
+                }}
+              />
+              <Button type="button" variant="secondary" onClick={applyCoupon} disabled={couponChecking || !couponInput.trim()}>
+                {couponChecking ? "…" : "Apply"}
+              </Button>
+            </div>
+          )}
+          {couponError && <p className="mt-1.5 text-xs text-destructive">{couponError}</p>}
+        </div>
+
+        <div className="my-4 h-px bg-border" />
         <Row label="Subtotal" value={formatCents(subtotalCents)} />
-        <Row label="GST (5%)" value={formatCents(tax)} />
+        {discount > 0 && (
+          <div className="flex justify-between text-sm text-emerald-700">
+            <span>Discount</span>
+            <span>−{formatCents(discount)}</span>
+          </div>
+        )}
+        <Row label={`GST (${(taxRateBps / 100).toString()}%)`} value={formatCents(tax)} />
         <Row label="Delivery" value={deliveryCharge === 0 ? "Free" : formatCents(deliveryCharge)} />
+        {deliveryCharge > 0 && subtotalCents < freeThresholdCents && (
+          <p className="pt-1 text-xs text-muted-foreground">
+            Add {formatCents(freeThresholdCents - subtotalCents)} more for free delivery.
+          </p>
+        )}
         <div className="my-4 h-px bg-border" />
         <Row label="Total" value={formatCents(total)} bold />
         <Button type="submit" size="lg" className="mt-6 w-full" disabled={submitting}>

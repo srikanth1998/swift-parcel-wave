@@ -23,6 +23,7 @@ import { formatCents } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AdminPageFrame } from "@/components/admin-nav";
 import {
   Select,
   SelectContent,
@@ -151,31 +152,31 @@ function AdminReferralPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16">
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-destructive">
+      <AdminPageFrame
+        title="Referral Management"
+        description="Review users, referral hierarchy, and commission payout states."
+      >
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Referral management could not load."}
         </div>
-      </div>
+      </AdminPageFrame>
     );
   }
 
   return (
-    <div className="bg-muted/30">
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl font-semibold">Referral Management</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review users, referral hierarchy, and commission payout states.
-            </p>
-          </div>
+    <AdminPageFrame
+      title="Referral Management"
+      description="Review users, referral hierarchy, and commission payout states."
+    >
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button variant="outline" onClick={exportCsv} disabled={!data?.commissions.length}>
             <Download />
             Export CSV
           </Button>
         </div>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <AdminStat icon={WalletCards} label="Pending commissions" value={data?.stats.pendingCount ?? 0} />
           <AdminStat
             icon={SlidersHorizontal}
@@ -190,7 +191,7 @@ function AdminReferralPage() {
           <AdminStat icon={Users} label="Paid" value={formatCents(data?.stats.paidCents ?? 0)} />
         </section>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <section className="rounded-md border border-border bg-card p-4 shadow-sm">
           <div className="grid gap-3 md:grid-cols-[1fr_160px_160px_150px_150px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -249,8 +250,8 @@ function AdminReferralPage() {
           </div>
         </section>
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+        <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-md border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <h2 className="font-display text-xl font-semibold">Users</h2>
@@ -305,7 +306,7 @@ function AdminReferralPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="rounded-md border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center gap-2">
               <Network className="h-5 w-5 text-primary" />
               <h2 className="font-display text-xl font-semibold">Referral Hierarchy</h2>
@@ -368,7 +369,7 @@ function AdminReferralPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+        <section className="rounded-md border border-border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-xl font-semibold">Commission History</h2>
             <div className="text-sm text-muted-foreground">
@@ -482,7 +483,7 @@ function AdminReferralPage() {
           </div>
         </section>
       </div>
-    </div>
+    </AdminPageFrame>
   );
 }
 
@@ -496,7 +497,7 @@ function AdminStat({
   value: string | number;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className="rounded-md border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">{label}</div>
         <Icon className="h-4 w-4 text-primary" />

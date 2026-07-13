@@ -5,6 +5,8 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import type { Database } from "@/integrations/supabase/types";
 import { generateOrderNumber } from "./format";
 import { STATUS_NOTIFICATION } from "./order-status";
+import { fetchStoreSettings } from "./store-settings";
+import { evaluateCoupon } from "./coupon-eval";
 
 function publicClient() {
   return createClient<Database>(
@@ -44,12 +46,9 @@ const placeOrderSchema = z.object({
   deliveryInstructions: z.string().trim().max(500).nullable().optional(),
   customerNotes: z.string().trim().max(500).nullable().optional(),
   substitutionPreference: z.enum(["replace_similar", "refund_if_unavailable", "contact_me"]),
+  couponCode: z.string().trim().max(40).nullable().optional(),
   items: z.array(cartItemSchema).min(1).max(100),
 });
-
-const TAX_RATE = 0.05; // GST 5% on groceries
-const DELIVERY_CHARGE_CENTS = 4000; // ₹40
-const FREE_DELIVERY_THRESHOLD_CENTS = 49900; // free over ₹499
 
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => placeOrderSchema.parse(input))
@@ -88,9 +87,27 @@ export const placeOrder = createServerFn({ method: "POST" })
       };
     });
 
-    const tax = Math.round(subtotal * TAX_RATE);
-    const delivery_charge = subtotal >= FREE_DELIVERY_THRESHOLD_CENTS ? 0 : DELIVERY_CHARGE_CENTS;
-    const total = subtotal + tax + delivery_charge;
+    // Pricing is authoritative here: read live store settings and re-evaluate
+    // any coupon server-side so the client can't tamper with tax/discount/total.
+    const settings = await fetchStoreSettings(pub);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let discount = 0;
+    let couponId: string | null = null;
+    let couponCode: string | null = null;
+    if (data.couponCode && data.couponCode.trim()) {
+      const evaluation = await evaluateCoupon(supabaseAdmin, data.couponCode, subtotal, userId);
+      if (!evaluation.ok) throw new Error(evaluation.reason);
+      discount = evaluation.discountCents;
+      couponId = evaluation.couponId;
+      couponCode = evaluation.code;
+    }
+
+    const taxableBase = Math.max(subtotal - discount, 0);
+    const tax = Math.round((taxableBase * settings.taxRateBps) / 10000);
+    const delivery_charge =
+      subtotal >= settings.freeDeliveryThresholdCents ? 0 : settings.deliveryChargeCents;
+    const total = taxableBase + tax + delivery_charge;
 
     const { data: addr, error: addrErr } = await supabase
       .from("delivery_addresses")
@@ -121,9 +138,12 @@ export const placeOrder = createServerFn({ method: "POST" })
         payment_method: "cod",
         payment_status: "pending",
         subtotal,
+        discount,
         tax,
         delivery_charge,
         total,
+        coupon_id: couponId,
+        coupon_code: couponCode,
         customer_notes: data.customerNotes || null,
         delivery_instructions: data.deliveryInstructions || null,
         substitution_preference: data.substitutionPreference,
@@ -136,6 +156,28 @@ export const placeOrder = createServerFn({ method: "POST" })
       .from("order_items")
       .insert(orderItemRows.map((r) => ({ ...r, order_id: order.id })));
     if (itemsErr) throw new Error(itemsErr.message);
+
+    // Decrement stock (atomic, floors at 0) and log an inventory adjustment per line.
+    await supabaseAdmin.rpc("record_order_stock_decrement", { _order_id: order.id });
+
+    // Record the coupon redemption and bump its usage counter.
+    if (couponId) {
+      await supabaseAdmin.from("coupon_redemptions").insert({
+        coupon_id: couponId,
+        order_id: order.id,
+        user_id: userId,
+        discount_cents: discount,
+      });
+      const { data: couponRow } = await supabaseAdmin
+        .from("coupons")
+        .select("used_count")
+        .eq("id", couponId)
+        .single();
+      await supabaseAdmin
+        .from("coupons")
+        .update({ used_count: (couponRow?.used_count ?? 0) + 1 })
+        .eq("id", couponId);
+    }
 
     if (userId) {
       const n = STATUS_NOTIFICATION["order_placed"]!;
@@ -152,7 +194,7 @@ export const placeOrder = createServerFn({ method: "POST" })
   });
 
 const ORDER_SELECT =
-  "id, order_number, order_status, payment_method, payment_status, subtotal, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
+  "id, order_number, order_status, payment_method, payment_status, subtotal, discount, coupon_code, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
 
 export const getOrderByNumber = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => z.object({ orderNumber: z.string() }).parse(input))

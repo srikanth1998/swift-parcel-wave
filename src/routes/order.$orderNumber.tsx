@@ -128,6 +128,12 @@ function OrderPage() {
           </ul>
           <div className="mt-4 space-y-1 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCents(order.subtotal)}</span></div>
+            {order.discount > 0 && (
+              <div className="flex justify-between text-emerald-700">
+                <span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
+                <span>−{formatCents(order.discount)}</span>
+              </div>
+            )}
             <div className="flex justify-between"><span className="text-muted-foreground">Tax</span><span>{formatCents(order.tax)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span>{order.delivery_charge === 0 ? "Free" : formatCents(order.delivery_charge)}</span></div>
             <div className="flex justify-between pt-2 text-base font-semibold"><span>Total</span><span>{formatCents(order.total)}</span></div>

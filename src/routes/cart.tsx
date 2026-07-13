@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCents, deriveOffer } from "@/lib/format";
+import { getStoreSettings } from "@/lib/settings.functions";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { Trash2, ShoppingBag, Tag, ImageOff } from "lucide-react";
 import { toast } from "sonner";
@@ -13,13 +15,16 @@ export const Route = createFileRoute("/cart")({
   component: CartPage,
 });
 
-const TAX_RATE = 0.05;
-const DELIVERY_CENTS = 4000;
-const FREE_THRESHOLD = 49900;
-
 function CartPage() {
   const { items, setQty, remove, subtotalCents, hydrated } = useCart();
   const [coupon, setCoupon] = useState("");
+  const { data: settings } = useQuery({
+    queryKey: ["store-settings"],
+    queryFn: () => getStoreSettings(),
+  });
+  const taxRateBps = settings?.taxRateBps ?? 500;
+  const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
+  const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
 
   if (!hydrated) return <div className="mx-auto max-w-4xl px-4 py-16" />;
 
@@ -42,8 +47,8 @@ function CartPage() {
     return acc + (off.mrpCents - item.priceCents) * item.qty;
   }, 0);
 
-  const tax = Math.round(subtotalCents * TAX_RATE);
-  const delivery = subtotalCents >= FREE_THRESHOLD ? 0 : DELIVERY_CENTS;
+  const tax = Math.round((subtotalCents * taxRateBps) / 10000);
+  const delivery = subtotalCents >= freeThresholdCents ? 0 : deliveryChargeCents;
   const total = subtotalCents + tax + delivery;
 
   return (
@@ -55,9 +60,9 @@ function CartPage() {
             <span className="text-sm text-muted-foreground">{items.length} item{items.length === 1 ? "" : "s"}</span>
           </div>
 
-          {subtotalCents < FREE_THRESHOLD && (
+          {subtotalCents < freeThresholdCents && (
             <div className="mt-4 rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-medium text-primary">
-              Add {formatCents(FREE_THRESHOLD - subtotalCents)} more for FREE delivery! 🎉
+              Add {formatCents(freeThresholdCents - subtotalCents)} more for FREE delivery! 🎉
             </div>
           )}
 
@@ -121,7 +126,7 @@ function CartPage() {
               {totalSavings > 0 && (
                 <Row label="Product savings" value={`− ${formatCents(totalSavings)}`} accent />
               )}
-              <Row label="GST (5%)" value={formatCents(tax)} />
+              <Row label={`GST (${(taxRateBps / 100).toString()}%)`} value={formatCents(tax)} />
               <Row label="Delivery" value={delivery === 0 ? "FREE" : formatCents(delivery)} accent={delivery === 0} />
             </dl>
             <div className="my-4 border-t border-dashed border-border" />
