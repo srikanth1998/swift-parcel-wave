@@ -17,7 +17,7 @@ import { getAdminOverview } from "@/lib/admin.functions";
 import { formatCents } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/order-status";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({ meta: [{ title: "Back office - FEABazaar" }] }),
   component: AdminDashboard,
 });
