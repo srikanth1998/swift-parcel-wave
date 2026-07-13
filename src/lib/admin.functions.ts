@@ -438,37 +438,48 @@ export const getAdminCustomers = createServerFn({ method: "GET" })
     await requireRole(["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [
-      { data: profiles, error: profilesError },
-      { data: roles, error: rolesError },
-      { data: authList, error: authError },
-    ] = await Promise.all([
+    const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] =
+      await Promise.all([
       supabaseAdmin
         .from("profiles")
         .select("id, full_name, phone, referral_code, referred_by_user_id, created_at")
         .order("created_at", { ascending: false })
         .limit(500),
       supabaseAdmin.from("user_roles").select("user_id, role"),
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
     ]);
     if (profilesError) throw new Error(profilesError.message);
     if (rolesError) throw new Error(rolesError.message);
-    if (authError) throw new Error(authError.message);
-
-    const emailByUser = new Map<string, string | null>();
-    (authList?.users ?? []).forEach((u) => {
-      emailByUser.set(u.id, u.email ?? null);
-    });
 
     const profileRows = profiles ?? [];
     const profileIds = profileRows.map((profile) => profile.id);
-    const { data: orders, error: ordersError } = profileIds.length
-      ? await supabaseAdmin
-          .from("orders")
-          .select("id, customer_id, total, payment_status, order_status")
-          .in("customer_id", profileIds)
-      : { data: [], error: null };
+    const [
+      { data: orders, error: ordersError },
+      { data: deliveryAddresses, error: addressesError },
+    ] = profileIds.length
+      ? await Promise.all([
+          supabaseAdmin
+            .from("orders")
+            .select("id, customer_id, total, payment_status, order_status")
+            .in("customer_id", profileIds),
+          supabaseAdmin
+            .from("delivery_addresses")
+            .select("customer_id, email")
+            .in("customer_id", profileIds)
+            .order("created_at", { ascending: false }),
+        ])
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+        ];
     if (ordersError) throw new Error(ordersError.message);
+    if (addressesError) throw new Error(addressesError.message);
+
+    const emailByUser = new Map<string, string | null>();
+    (deliveryAddresses ?? []).forEach((address) => {
+      if (address.customer_id && !emailByUser.has(address.customer_id)) {
+        emailByUser.set(address.customer_id, address.email ?? null);
+      }
+    });
 
     const rolesByUser = new Map<string, AppRole[]>();
     (roles ?? []).forEach((role) => {
