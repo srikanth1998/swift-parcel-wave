@@ -2,11 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Search, ShieldCheck, UserCog } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
   TableBody,
@@ -33,7 +34,25 @@ function AdminCustomersPage() {
   const { data: customers = [], isLoading, error } = useQuery({
     queryKey: ["admin-customers", filters],
     queryFn: () => getAdminCustomers({ data: filters }),
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-customers-profiles")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "profiles" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-customers"] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const roleMutation = useMutation({
     mutationFn: (input: { userId: string; roles: Role[] }) =>
