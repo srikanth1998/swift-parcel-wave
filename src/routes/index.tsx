@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { listCategories, listProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/product-card";
 import { Button } from "@/components/ui/button";
@@ -44,15 +44,15 @@ function categoryImage(slug: string) {
 }
 
 function Home() {
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useSuspenseQuery({
     queryKey: ["categories"],
     queryFn: () => listCategories(),
   });
-  const { data: featured = [] } = useQuery({
+  const { data: featured = [] } = useSuspenseQuery({
     queryKey: ["products", { featured: true }],
     queryFn: () => listProducts({ data: { featuredOnly: true, limit: 8 } }),
   });
-  const { data: allProducts = [] } = useQuery({
+  const { data: allProducts = [] } = useSuspenseQuery({
     queryKey: ["products", { all: true }],
     queryFn: () => listProducts({ data: { limit: 12 } }),
   });
