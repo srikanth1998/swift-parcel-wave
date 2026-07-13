@@ -129,6 +129,7 @@ function AdminProductsBoardPage() {
       updateProductRow({ data: toPayload(vars.id, vars.row) }),
     onSuccess: (_result, vars) => {
       setOriginals((prev) => ({ ...prev, [vars.id]: vars.row }));
+      queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
       toast.success("Saved");
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Save failed"),
@@ -147,6 +148,7 @@ function AdminProductsBoardPage() {
         rows.forEach((entry) => (next[entry.id] = entry.row));
         return next;
       });
+      queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
       toast.success(`Saved ${rows.length} product${rows.length === 1 ? "" : "s"}`);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Bulk save failed"),
