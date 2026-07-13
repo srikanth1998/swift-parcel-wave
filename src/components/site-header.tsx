@@ -1,7 +1,19 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
-import { ShoppingCart, User, LogOut, Package, Search, ChevronDown, MapPin, Sparkles, Flame, Network, LayoutDashboard } from "lucide-react";
+import {
+  ShoppingCart,
+  User,
+  LogOut,
+  Package,
+  Search,
+  ChevronDown,
+  MapPin,
+  Sparkles,
+  Flame,
+  Network,
+  LayoutDashboard,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,7 +51,7 @@ export function SiteHeader() {
       return data.map((row) => row.role);
     },
   });
-  const isAdmin = roles.includes("admin");
+  const isBackOffice = roles.includes("admin") || roles.includes("staff");
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -91,7 +103,7 @@ export function SiteHeader() {
                     Referrals
                   </Link>
                 </DropdownMenuItem>
-                {isAdmin && (
+                {isBackOffice && (
                   <DropdownMenuItem asChild>
                     <Link to="/admin">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -119,11 +131,18 @@ export function SiteHeader() {
             </Button>
           )}
 
-          <Button asChild variant="default" size="sm" className="relative h-11 gap-2 rounded-full pl-4 pr-4">
+          <Button
+            asChild
+            variant="default"
+            size="sm"
+            className="relative h-11 gap-2 rounded-full pl-4 pr-4"
+          >
             <Link to="/cart" aria-label="Cart">
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden text-sm font-semibold sm:inline">
-                {hydrated && itemCount > 0 ? `${itemCount} item${itemCount === 1 ? "" : "s"}` : "Cart"}
+                {hydrated && itemCount > 0
+                  ? `${itemCount} item${itemCount === 1 ? "" : "s"}`
+                  : "Cart"}
               </span>
               {hydrated && itemCount > 0 && (
                 <span className="ml-1 hidden rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold sm:inline">
@@ -152,7 +171,9 @@ export function SiteHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2.5 text-sm font-semibold text-primary">
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground text-[10px]">☰</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground text-[10px]">
+                  ☰
+                </span>
                 Shop by Category
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
@@ -171,15 +192,50 @@ export function SiteHeader() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Link to="/shop" className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary">All Products</Link>
-          <Link to="/shop" search={{ category: "fruits-vegetables" }} className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary">Fruits & Vegetables</Link>
-          <Link to="/shop" search={{ category: "dairy-eggs" }} className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary">Dairy & Eggs</Link>
-          <Link to="/shop" search={{ category: "pantry" }} className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary">Rice & Grains</Link>
-          <Link to="/shop" search={{ category: "beverages" }} className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary">Beverages</Link>
+          <Link
+            to="/shop"
+            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+          >
+            All Products
+          </Link>
+          <Link
+            to="/shop"
+            search={{ category: "fruits-vegetables" }}
+            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+          >
+            Fruits & Vegetables
+          </Link>
+          <Link
+            to="/shop"
+            search={{ category: "dairy-eggs" }}
+            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+          >
+            Dairy & Eggs
+          </Link>
+          <Link
+            to="/shop"
+            search={{ category: "pantry" }}
+            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+          >
+            Rice & Grains
+          </Link>
+          <Link
+            to="/shop"
+            search={{ category: "beverages" }}
+            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+          >
+            Beverages
+          </Link>
           <span className="ml-auto flex items-center gap-4 py-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-accent" /> Free delivery over ₹499</span>
-            <span className="inline-flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-accent" /> Fresh from our warehouse</span>
-            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> India</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-accent" /> Free delivery over ₹499
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Flame className="h-3.5 w-3.5 text-accent" /> Fresh from our warehouse
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" /> India
+            </span>
           </span>
         </div>
       </div>

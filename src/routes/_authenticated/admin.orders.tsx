@@ -69,14 +69,21 @@ function AdminOrdersPage() {
     [search, orderStatus, paymentStatus, dateFrom, dateTo],
   );
 
-  const { data: orders = [], isLoading, error } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-orders", filters],
     queryFn: () => getAdminOrders({ data: filters }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: (input: { orderId: string; orderStatus?: OrderStatus; paymentStatus?: PaymentStatus }) =>
-      updateAdminOrder({ data: input }),
+    mutationFn: (input: {
+      orderId: string;
+      orderStatus?: OrderStatus;
+      paymentStatus?: PaymentStatus;
+    }) => updateAdminOrder({ data: input }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       await queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
@@ -86,7 +93,10 @@ function AdminOrdersPage() {
   });
 
   return (
-    <AdminPageFrame title="Order queue" description="Track fulfillment, payments, delivery details, and line items.">
+    <AdminPageFrame
+      title="Order queue"
+      description="Track fulfillment, payments, delivery details, and line items."
+    >
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Orders could not load."}
@@ -104,7 +114,10 @@ function AdminOrdersPage() {
                   placeholder="Search order, name, email, phone, city, PIN"
                 />
               </div>
-              <Select value={orderStatus} onValueChange={(value) => setOrderStatus(value as OrderStatusFilter)}>
+              <Select
+                value={orderStatus}
+                onValueChange={(value) => setOrderStatus(value as OrderStatusFilter)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -117,7 +130,10 @@ function AdminOrdersPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={paymentStatus} onValueChange={(value) => setPaymentStatus(value as PaymentStatusFilter)}>
+              <Select
+                value={paymentStatus}
+                onValueChange={(value) => setPaymentStatus(value as PaymentStatusFilter)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -130,8 +146,16 @@ function AdminOrdersPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
-              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
             </div>
           </section>
 
@@ -225,11 +249,16 @@ function AdminOrdersPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-right font-medium">{formatCents(order.total)}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCents(order.total)}
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button asChild variant="outline" size="sm">
-                                <Link to="/order/$orderNumber" params={{ orderNumber: order.order_number }}>
+                                <Link
+                                  to="/order/$orderNumber"
+                                  params={{ orderNumber: order.order_number }}
+                                >
                                   Open
                                 </Link>
                               </Button>
@@ -237,7 +266,9 @@ function AdminOrdersPage() {
                                 variant="ghost"
                                 size="icon"
                                 title="Toggle details"
-                                onClick={() => setExpanded((current) => ({ ...current, [order.id]: !isOpen }))}
+                                onClick={() =>
+                                  setExpanded((current) => ({ ...current, [order.id]: !isOpen }))
+                                }
                               >
                                 {isOpen ? <ChevronDown /> : <ChevronRight />}
                               </Button>
@@ -260,7 +291,8 @@ function AdminOrdersPage() {
                                   </div>
                                   {order.customer_notes && (
                                     <div className="mt-3 text-sm">
-                                      <span className="font-medium">Notes:</span> {order.customer_notes}
+                                      <span className="font-medium">Notes:</span>{" "}
+                                      {order.customer_notes}
                                     </div>
                                   )}
                                 </div>
@@ -268,7 +300,10 @@ function AdminOrdersPage() {
                                   <div className="font-medium">Items</div>
                                   <div className="mt-2 divide-y divide-border">
                                     {order.items.map((item) => (
-                                      <div key={item.id} className="flex justify-between gap-3 py-2 text-sm">
+                                      <div
+                                        key={item.id}
+                                        className="flex justify-between gap-3 py-2 text-sm"
+                                      >
                                         <span>
                                           {item.ordered_qty} x {item.name_snapshot}
                                         </span>
@@ -285,7 +320,10 @@ function AdminOrdersPage() {
                                     </div>
                                     {order.discount > 0 && (
                                       <div className="flex justify-between text-emerald-700">
-                                        <span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
+                                        <span>
+                                          Discount
+                                          {order.coupon_code ? ` (${order.coupon_code})` : ""}
+                                        </span>
                                         <span>−{formatCents(order.discount)}</span>
                                       </div>
                                     )}
@@ -295,7 +333,11 @@ function AdminOrdersPage() {
                                     </div>
                                     <div className="flex justify-between text-muted-foreground">
                                       <span>Delivery</span>
-                                      <span>{order.delivery_charge === 0 ? "Free" : formatCents(order.delivery_charge)}</span>
+                                      <span>
+                                        {order.delivery_charge === 0
+                                          ? "Free"
+                                          : formatCents(order.delivery_charge)}
+                                      </span>
                                     </div>
                                     <div className="flex justify-between pt-1 font-semibold">
                                       <span>Total</span>

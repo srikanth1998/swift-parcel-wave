@@ -9,24 +9,18 @@ import { fetchStoreSettings } from "./store-settings";
 import { evaluateCoupon } from "./coupon-eval";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 const cartItemSchema = z.object({
@@ -42,7 +36,10 @@ const placeOrderSchema = z.object({
   line2: z.string().trim().max(100).nullable().optional(),
   city: z.string().trim().min(1).max(100),
   state: z.string().trim().min(1).max(60),
-  zip: z.string().trim().regex(/^\d{6}$/, "Enter a valid 6-digit PIN code"),
+  zip: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, "Enter a valid 6-digit PIN code"),
   deliveryInstructions: z.string().trim().max(500).nullable().optional(),
   customerNotes: z.string().trim().max(500).nullable().optional(),
   substitutionPreference: z.enum(["replace_similar", "refund_if_unavailable", "contact_me"]),
@@ -157,26 +154,39 @@ export const placeOrder = createServerFn({ method: "POST" })
       .insert(orderItemRows.map((r) => ({ ...r, order_id: order.id })));
     if (itemsErr) throw new Error(itemsErr.message);
 
-    // Decrement stock (atomic, floors at 0) and log an inventory adjustment per line.
-    await supabaseAdmin.rpc("record_order_stock_decrement", { _order_id: order.id });
+    // Post-order bookkeeping. The order already exists, so failures here are
+    // logged but never surfaced as a checkout failure to the customer.
+    try {
+      // Decrement stock (atomic, floors at 0) and log an inventory adjustment per line.
+      const { error: stockErr } = await supabaseAdmin.rpc("record_order_stock_decrement", {
+        _order_id: order.id,
+      });
+      if (stockErr) console.error("[placeOrder] stock decrement failed:", stockErr.message);
+    } catch (err) {
+      console.error("[placeOrder] stock decrement failed:", err);
+    }
 
     // Record the coupon redemption and bump its usage counter.
     if (couponId) {
-      await supabaseAdmin.from("coupon_redemptions").insert({
-        coupon_id: couponId,
-        order_id: order.id,
-        user_id: userId,
-        discount_cents: discount,
-      });
-      const { data: couponRow } = await supabaseAdmin
-        .from("coupons")
-        .select("used_count")
-        .eq("id", couponId)
-        .single();
-      await supabaseAdmin
-        .from("coupons")
-        .update({ used_count: (couponRow?.used_count ?? 0) + 1 })
-        .eq("id", couponId);
+      try {
+        await supabaseAdmin.from("coupon_redemptions").insert({
+          coupon_id: couponId,
+          order_id: order.id,
+          user_id: userId,
+          discount_cents: discount,
+        });
+        const { data: couponRow } = await supabaseAdmin
+          .from("coupons")
+          .select("used_count")
+          .eq("id", couponId)
+          .single();
+        await supabaseAdmin
+          .from("coupons")
+          .update({ used_count: (couponRow?.used_count ?? 0) + 1 })
+          .eq("id", couponId);
+      } catch (err) {
+        console.error("[placeOrder] coupon redemption bookkeeping failed:", err);
+      }
     }
 
     if (userId) {

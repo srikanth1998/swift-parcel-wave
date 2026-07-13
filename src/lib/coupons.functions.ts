@@ -8,14 +8,10 @@ import { evaluateCoupon, normalizeCouponCode } from "./coupon-eval";
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function getOptionalUserId(): Promise<string | null> {
@@ -82,8 +78,7 @@ export const getAdminCoupons = createServerFn({ method: "GET" }).handler(async (
     coupons: rows.map((coupon) => {
       const expired = coupon.expires_at ? new Date(coupon.expires_at).getTime() < now : false;
       const notStarted = coupon.starts_at ? new Date(coupon.starts_at).getTime() > now : false;
-      const exhausted =
-        coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit;
+      const exhausted = coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit;
       const state = !coupon.is_active
         ? "disabled"
         : expired

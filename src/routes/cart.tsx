@@ -35,8 +35,12 @@ function CartPage() {
           <ShoppingBag className="h-10 w-10" />
         </div>
         <h1 className="mt-4 font-display text-2xl font-bold">Your cart is empty</h1>
-        <p className="mt-2 text-muted-foreground">Browse fresh groceries and add your favourites.</p>
-        <Button asChild size="lg" className="mt-6 rounded-full"><Link to="/shop">Start shopping</Link></Button>
+        <p className="mt-2 text-muted-foreground">
+          Browse fresh groceries and add your favourites.
+        </p>
+        <Button asChild size="lg" className="mt-6 rounded-full">
+          <Link to="/shop">Start shopping</Link>
+        </Button>
       </div>
     );
   }
@@ -57,7 +61,9 @@ function CartPage() {
         <div>
           <div className="flex items-end justify-between">
             <h1 className="font-display text-2xl font-bold sm:text-3xl">Your cart</h1>
-            <span className="text-sm text-muted-foreground">{items.length} item{items.length === 1 ? "" : "s"}</span>
+            <span className="text-sm text-muted-foreground">
+              {items.length} item{items.length === 1 ? "" : "s"}
+            </span>
           </div>
 
           {subtotalCents < freeThresholdCents && (
@@ -70,16 +76,33 @@ function CartPage() {
             {items.map((item) => {
               const offer = deriveOffer(item.slug, item.priceCents);
               return (
-                <li key={item.productId} className="flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4">
-                  <Link to="/product/$slug" params={{ slug: item.slug }} className="block h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted">
+                <li
+                  key={item.productId}
+                  className="flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4"
+                >
+                  <Link
+                    to="/product/$slug"
+                    params={{ slug: item.slug }}
+                    className="block h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted"
+                  >
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-muted-foreground"><ImageOff className="h-6 w-6" /></div>
+                      <div className="flex h-full items-center justify-center text-muted-foreground">
+                        <ImageOff className="h-6 w-6" />
+                      </div>
                     )}
                   </Link>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <Link to="/product/$slug" params={{ slug: item.slug }} className="line-clamp-2 text-sm font-semibold hover:text-primary">
+                    <Link
+                      to="/product/$slug"
+                      params={{ slug: item.slug }}
+                      className="line-clamp-2 text-sm font-semibold hover:text-primary"
+                    >
                       {item.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">{item.unitLabel}</div>
@@ -87,16 +110,32 @@ function CartPage() {
                       <span className="text-sm font-bold">{formatCents(item.priceCents)}</span>
                       {offer && (
                         <>
-                          <span className="text-xs text-muted-foreground line-through">{formatCents(offer.mrpCents)}</span>
-                          <span className="text-[10px] font-bold text-accent">{offer.discountPct}% OFF</span>
+                          <span className="text-xs text-muted-foreground line-through">
+                            {formatCents(offer.mrpCents)}
+                          </span>
+                          <span className="text-[10px] font-bold text-accent">
+                            {offer.discountPct}% OFF
+                          </span>
                         </>
                       )}
                     </div>
                     <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-                      <QuantityStepper size="sm" value={item.qty} onChange={(n) => setQty(item.productId, n)} />
+                      <QuantityStepper
+                        size="sm"
+                        value={item.qty}
+                        onChange={(n) => setQty(item.productId, n)}
+                      />
                       <div className="flex items-center gap-1">
-                        <span className="text-sm font-bold">{formatCents(item.priceCents * item.qty)}</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => remove(item.productId)} aria-label="Remove">
+                        <span className="text-sm font-bold">
+                          {formatCents(item.priceCents * item.qty)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => remove(item.productId)}
+                          aria-label="Remove"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -114,8 +153,19 @@ function CartPage() {
               <Tag className="h-3.5 w-3.5" /> Coupon code
             </div>
             <div className="mt-2 flex gap-2">
-              <Input placeholder="Enter code" value={coupon} onChange={(e) => setCoupon(e.target.value)} className="h-9" />
-              <Button variant="outline" className="h-9" onClick={() => toast.info("Coupons available at checkout")}>Apply</Button>
+              <Input
+                placeholder="Enter code"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                className="h-9"
+              />
+              <Button
+                variant="outline"
+                className="h-9"
+                onClick={() => toast.info("Coupons available at checkout")}
+              >
+                Apply
+              </Button>
             </div>
           </div>
 
@@ -127,7 +177,11 @@ function CartPage() {
                 <Row label="Product savings" value={`− ${formatCents(totalSavings)}`} accent />
               )}
               <Row label={`GST (${(taxRateBps / 100).toString()}%)`} value={formatCents(tax)} />
-              <Row label="Delivery" value={delivery === 0 ? "FREE" : formatCents(delivery)} accent={delivery === 0} />
+              <Row
+                label="Delivery"
+                value={delivery === 0 ? "FREE" : formatCents(delivery)}
+                accent={delivery === 0}
+              />
             </dl>
             <div className="my-4 border-t border-dashed border-border" />
             <div className="flex items-baseline justify-between">

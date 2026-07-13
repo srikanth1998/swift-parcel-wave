@@ -100,8 +100,8 @@ function AdminReferralPage() {
   const directChildren = selectedId
     ? (data?.profiles.filter((profile) => profile.referredByUserId === selectedId) ?? [])
     : [];
-  const secondLevelChildren = directChildren.flatMap((child) =>
-    data?.profiles.filter((profile) => profile.referredByUserId === child.id) ?? [],
+  const secondLevelChildren = directChildren.flatMap(
+    (child) => data?.profiles.filter((profile) => profile.referredByUserId === child.id) ?? [],
   );
 
   const updateStatusMutation = useMutation({
@@ -177,7 +177,11 @@ function AdminReferralPage() {
         </div>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <AdminStat icon={WalletCards} label="Pending commissions" value={data?.stats.pendingCount ?? 0} />
+          <AdminStat
+            icon={WalletCards}
+            label="Pending commissions"
+            value={data?.stats.pendingCount ?? 0}
+          />
           <AdminStat
             icon={SlidersHorizontal}
             label="Pending amount"
@@ -197,7 +201,9 @@ function AdminReferralPage() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={filters.search}
-                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, search: event.target.value }))
+                }
                 className="pl-9"
                 placeholder="Search users or codes"
               />
@@ -212,11 +218,13 @@ function AdminReferralPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(["all", "pending", "approved", "paid", "cancelled"] as StatusFilter[]).map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {STATUS_LABEL[status]}
-                  </SelectItem>
-                ))}
+                {(["all", "pending", "approved", "paid", "cancelled"] as StatusFilter[]).map(
+                  (status) => (
+                    <SelectItem key={status} value={status}>
+                      {STATUS_LABEL[status]}
+                    </SelectItem>
+                  ),
+                )}
               </SelectContent>
             </Select>
             <Select
@@ -240,12 +248,16 @@ function AdminReferralPage() {
             <Input
               type="date"
               value={filters.dateFrom}
-              onChange={(event) => setFilters((current) => ({ ...current, dateFrom: event.target.value }))}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, dateFrom: event.target.value }))
+              }
             />
             <Input
               type="date"
               value={filters.dateTo}
-              onChange={(event) => setFilters((current) => ({ ...current, dateTo: event.target.value }))}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, dateTo: event.target.value }))
+              }
             />
           </div>
         </section>
@@ -281,7 +293,10 @@ function AdminReferralPage() {
                     </TableRow>
                   ) : (
                     data?.users.map((user) => (
-                      <TableRow key={user.id} data-state={selectedId === user.id ? "selected" : undefined}>
+                      <TableRow
+                        key={user.id}
+                        data-state={selectedId === user.id ? "selected" : undefined}
+                      >
                         <TableCell>
                           <div className="font-medium">{user.fullName}</div>
                           <div className="text-xs text-muted-foreground">
@@ -289,11 +304,17 @@ function AdminReferralPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <code className="rounded bg-secondary px-2 py-1 text-xs">{user.referralCode}</code>
+                          <code className="rounded bg-secondary px-2 py-1 text-xs">
+                            {user.referralCode}
+                          </code>
                         </TableCell>
                         <TableCell className="text-right">{user.directReferralCount}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="outline" onClick={() => setSelectedUserId(user.id)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedUserId(user.id)}
+                          >
                             <Eye />
                             View
                           </Button>
@@ -315,7 +336,9 @@ function AdminReferralPage() {
               <div className="mt-4 space-y-3">
                 <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
                   <div className="font-medium">{selectedProfile.fullName}</div>
-                  <div className="text-xs text-muted-foreground">{selectedProfile.referralCode}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedProfile.referralCode}
+                  </div>
                 </div>
                 <div className="space-y-2 border-l border-border pl-4">
                   {directChildren.length === 0 ? (
@@ -414,10 +437,14 @@ function AdminReferralPage() {
                       <TableCell>{commission.buyerName}</TableCell>
                       <TableCell>
                         <div className="font-medium">{commission.beneficiaryName}</div>
-                        <div className="text-xs text-muted-foreground">{commission.beneficiaryCode}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {commission.beneficiaryCode}
+                        </div>
                       </TableCell>
                       <TableCell>{commission.orderNumber}</TableCell>
-                      <TableCell className="text-right">{formatCents(commission.orderAmountCents)}</TableCell>
+                      <TableCell className="text-right">
+                        {formatCents(commission.orderAmountCents)}
+                      </TableCell>
                       <TableCell>L{commission.referralLevel}</TableCell>
                       <TableCell>{commission.percentage}%</TableCell>
                       <TableCell className="text-right font-medium">
@@ -440,14 +467,18 @@ function AdminReferralPage() {
                               variant="outline"
                               disabled={updateStatusMutation.isPending}
                               onClick={() =>
-                                updateStatusMutation.mutate({ id: commission.id, status: "approved" })
+                                updateStatusMutation.mutate({
+                                  id: commission.id,
+                                  status: "approved",
+                                })
                               }
                             >
                               <CheckCircle2 />
                               Approve
                             </Button>
                           )}
-                          {(commission.status === "pending" || commission.status === "approved") && (
+                          {(commission.status === "pending" ||
+                            commission.status === "approved") && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -466,7 +497,10 @@ function AdminReferralPage() {
                               variant="outline"
                               disabled={updateStatusMutation.isPending}
                               onClick={() =>
-                                updateStatusMutation.mutate({ id: commission.id, status: "cancelled" })
+                                updateStatusMutation.mutate({
+                                  id: commission.id,
+                                  status: "cancelled",
+                                })
                               }
                             >
                               <XCircle />

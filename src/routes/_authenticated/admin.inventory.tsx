@@ -207,7 +207,8 @@ function AdminInventoryPage() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">{adjustment.productName}</div>
                           <div className="text-xs capitalize text-muted-foreground">
-                            {adjustment.reason} · {format(new Date(adjustment.created_at), "MMM d, h:mm a")}
+                            {adjustment.reason} ·{" "}
+                            {format(new Date(adjustment.created_at), "MMM d, h:mm a")}
                           </div>
                         </div>
                         <div
@@ -268,7 +269,9 @@ function AdminInventoryPage() {
                             <div className="text-xs text-muted-foreground">{product.unitLabel}</div>
                           </TableCell>
                           <TableCell>{product.category ?? "None"}</TableCell>
-                          <TableCell className="text-right">{formatCents(product.priceCents)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCents(product.priceCents)}
+                          </TableCell>
                           <TableCell className="text-right">
                             <span
                               className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[product.status]}`}

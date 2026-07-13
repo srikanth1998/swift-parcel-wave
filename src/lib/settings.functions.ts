@@ -6,24 +6,18 @@ import type { Database } from "@/integrations/supabase/types";
 import { fetchStoreSettings } from "./store-settings";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function requireAdminUser() {

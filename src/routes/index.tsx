@@ -28,14 +28,14 @@ export const Route = createFileRoute("/")({
 const CATEGORY_IMAGES: Record<string, string> = {
   "fruits-vegetables": "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=400",
   "dairy-eggs": "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400",
-  "bakery": "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400",
+  bakery: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400",
   "meat-seafood": "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400",
-  "pantry": "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400",
-  "beverages": "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=400",
-  "snacks": "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=400",
-  "spices": "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400",
-  "frozen": "https://images.unsplash.com/photo-1627308594190-a057cd4bfac8?w=400",
-  "household": "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400",
+  pantry: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400",
+  beverages: "https://images.unsplash.com/photo-1625772299848-391b6a87d7b3?w=400",
+  snacks: "https://images.unsplash.com/photo-1621939514649-280e2ee25f60?w=400",
+  spices: "https://images.unsplash.com/photo-1596040033229-a9821ebd058d?w=400",
+  frozen: "https://images.unsplash.com/photo-1627308594190-a057cd4bfac8?w=400",
+  household: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=400",
   "personal-care": "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=400",
 };
 
@@ -78,19 +78,31 @@ function Home() {
                 <Sparkles className="h-3.5 w-3.5" /> Fresh Deals · Every Day
               </div>
               <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
-                Fresh Groceries<br />Delivered to Your Door
+                Fresh Groceries
+                <br />
+                Delivered to Your Door
               </h1>
               <p className="mt-3 max-w-md text-sm text-primary-foreground/85 sm:text-base">
-                Shop fresh. Save more. Daily essentials from FEABazaar's warehouse —
-                handpicked, carefully packed, and sent out fast.
+                Shop fresh. Save more. Daily essentials from FEABazaar's warehouse — handpicked,
+                carefully packed, and sent out fast.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button asChild size="lg" variant="secondary" className="rounded-full font-semibold">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="secondary"
+                  className="rounded-full font-semibold"
+                >
                   <Link to="/shop">
                     Shop Now <ArrowRight className="ml-1 h-4 w-4" />
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="ghost" className="rounded-full text-primary-foreground hover:bg-primary-foreground/10">
+                <Button
+                  asChild
+                  size="lg"
+                  variant="ghost"
+                  className="rounded-full text-primary-foreground hover:bg-primary-foreground/10"
+                >
                   <Link to="/shop" search={{ category: "fruits-vegetables" }}>
                     Fresh Fruits & Veggies
                   </Link>
@@ -112,24 +124,58 @@ function Home() {
       <section className="mx-auto max-w-7xl px-4 pt-6">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { badge: "Up to 30% Off", title: "Deals of the Week", body: "Groceries you love, cheaper", bg: "from-amber-100 to-amber-50", accent: "text-amber-700", img: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200" },
-            { badge: "Best Value", title: "Big Pack Savings", body: "Buy more, save more", bg: "from-emerald-100 to-emerald-50", accent: "text-emerald-700", img: "https://images.unsplash.com/photo-1573246123716-6b1782bfc499?w=200" },
-            { badge: "Today's Special", title: "Fresh Fruits & Vegetables", body: "Farm-fresh, everyday", bg: "from-rose-100 to-rose-50", accent: "text-rose-700", img: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=200" },
-            { badge: "Limited Time", title: "Household Essentials", body: "Stock up your home", bg: "from-sky-100 to-sky-50", accent: "text-sky-700", img: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200" },
+            {
+              badge: "Up to 30% Off",
+              title: "Deals of the Week",
+              body: "Groceries you love, cheaper",
+              bg: "from-amber-100 to-amber-50",
+              accent: "text-amber-700",
+              img: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=200",
+            },
+            {
+              badge: "Best Value",
+              title: "Big Pack Savings",
+              body: "Buy more, save more",
+              bg: "from-emerald-100 to-emerald-50",
+              accent: "text-emerald-700",
+              img: "https://images.unsplash.com/photo-1573246123716-6b1782bfc499?w=200",
+            },
+            {
+              badge: "Today's Special",
+              title: "Fresh Fruits & Vegetables",
+              body: "Farm-fresh, everyday",
+              bg: "from-rose-100 to-rose-50",
+              accent: "text-rose-700",
+              img: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=200",
+            },
+            {
+              badge: "Limited Time",
+              title: "Household Essentials",
+              body: "Stock up your home",
+              bg: "from-sky-100 to-sky-50",
+              accent: "text-sky-700",
+              img: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200",
+            },
           ].map((t) => (
             <Link
               key={t.title}
               to="/shop"
               className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${t.bg} p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md`}
             >
-              <div className={`inline-block rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase ${t.accent}`}>
+              <div
+                className={`inline-block rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase ${t.accent}`}
+              >
                 {t.badge}
               </div>
               <div className="mt-3 max-w-[65%]">
                 <div className="font-display text-base font-bold text-foreground">{t.title}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{t.body}</div>
               </div>
-              <img src={t.img} alt="" className="pointer-events-none absolute -right-2 bottom-0 h-20 w-20 rounded-full object-cover ring-4 ring-white/70" />
+              <img
+                src={t.img}
+                alt=""
+                className="pointer-events-none absolute -right-2 bottom-0 h-20 w-20 rounded-full object-cover ring-4 ring-white/70"
+              />
             </Link>
           ))}
         </div>
@@ -137,7 +183,11 @@ function Home() {
 
       {/* Shop by category */}
       <section className="mx-auto max-w-7xl px-4 py-10">
-        <SectionHeading title="Shop by Category" subtitle="Everything you need — organised and easy to browse" href="/shop" />
+        <SectionHeading
+          title="Shop by Category"
+          subtitle="Everything you need — organised and easy to browse"
+          href="/shop"
+        />
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
           {categories.map((c) => (
             <Link
@@ -148,7 +198,11 @@ function Home() {
             >
               <div className="relative">
                 <div className="h-16 w-16 overflow-hidden rounded-full bg-muted ring-2 ring-primary/10 sm:h-20 sm:w-20">
-                  <img src={categoryImage(c.slug)} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                  <img
+                    src={categoryImage(c.slug)}
+                    alt=""
+                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                  />
                 </div>
                 <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase text-accent-foreground shadow">
                   Save
@@ -164,7 +218,11 @@ function Home() {
 
       {/* Best sellers */}
       <section className="mx-auto max-w-7xl px-4 pb-10">
-        <SectionHeading title="Best Sellers" subtitle="What customers are stocking up on this week" href="/shop" />
+        <SectionHeading
+          title="Best Sellers"
+          subtitle="What customers are stocking up on this week"
+          href="/shop"
+        />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {bestSellers.slice(0, 10).map((p) => (
             <ProductCard key={p.id} product={p} />
@@ -176,9 +234,21 @@ function Home() {
       <section className="mx-auto max-w-7xl px-4 pb-10">
         <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3">
           {[
-            { icon: Leaf, title: "Handpicked fresh", body: "Every item selected from our warehouse shelves" },
-            { icon: ShoppingBasket, title: "Packed with care", body: "Fragile items cushioned, cold items insulated" },
-            { icon: Truck, title: "Sent fast", body: "Handed to our delivery partner the same day" },
+            {
+              icon: Leaf,
+              title: "Handpicked fresh",
+              body: "Every item selected from our warehouse shelves",
+            },
+            {
+              icon: ShoppingBasket,
+              title: "Packed with care",
+              body: "Fragile items cushioned, cold items insulated",
+            },
+            {
+              icon: Truck,
+              title: "Sent fast",
+              body: "Handed to our delivery partner the same day",
+            },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="flex items-start gap-3 rounded-xl bg-primary/5 p-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -200,7 +270,11 @@ function Home() {
             title="Daily Staples"
             subtitle="Rice, atta, dal, oil, and spices — always in stock"
             href="/shop"
-            badge={<span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent"><Percent className="h-3 w-3" /> Everyday low prices</span>}
+            badge={
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                <Percent className="h-3 w-3" /> Everyday low prices
+              </span>
+            }
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {dailyStaples.map((p) => (

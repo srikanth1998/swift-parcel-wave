@@ -130,7 +130,10 @@ function AdminProductsPage() {
   }, [data?.products, search]);
 
   return (
-    <AdminPageFrame title="Catalog" description="Manage products, categories, inventory, and storefront visibility.">
+    <AdminPageFrame
+      title="Catalog"
+      description="Manage products, categories, inventory, and storefront visibility."
+    >
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Catalog could not load."}
@@ -161,14 +164,18 @@ function AdminProductsPage() {
                   <Field label="Name">
                     <Input
                       value={productForm.name}
-                      onChange={(event) => setProductForm((current) => ({ ...current, name: event.target.value }))}
+                      onChange={(event) =>
+                        setProductForm((current) => ({ ...current, name: event.target.value }))
+                      }
                       required
                     />
                   </Field>
                   <Field label="Slug">
                     <Input
                       value={productForm.slug}
-                      onChange={(event) => setProductForm((current) => ({ ...current, slug: event.target.value }))}
+                      onChange={(event) =>
+                        setProductForm((current) => ({ ...current, slug: event.target.value }))
+                      }
                       placeholder="Auto from name"
                     />
                   </Field>
@@ -185,7 +192,9 @@ function AdminProductsPage() {
                   <Field label="Category">
                     <Select
                       value={productForm.categoryId}
-                      onValueChange={(categoryId) => setProductForm((current) => ({ ...current, categoryId }))}
+                      onValueChange={(categoryId) =>
+                        setProductForm((current) => ({ ...current, categoryId }))
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -203,7 +212,9 @@ function AdminProductsPage() {
                   <Field label="Image URL">
                     <Input
                       value={productForm.imageUrl}
-                      onChange={(event) => setProductForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                      onChange={(event) =>
+                        setProductForm((current) => ({ ...current, imageUrl: event.target.value }))
+                      }
                     />
                   </Field>
                 </div>
@@ -215,7 +226,10 @@ function AdminProductsPage() {
                       step="0.01"
                       value={productForm.priceRupees}
                       onChange={(event) =>
-                        setProductForm((current) => ({ ...current, priceRupees: Number(event.target.value) }))
+                        setProductForm((current) => ({
+                          ...current,
+                          priceRupees: Number(event.target.value),
+                        }))
                       }
                       required
                     />
@@ -235,7 +249,10 @@ function AdminProductsPage() {
                       min={0}
                       value={productForm.stockQty}
                       onChange={(event) =>
-                        setProductForm((current) => ({ ...current, stockQty: Number(event.target.value) }))
+                        setProductForm((current) => ({
+                          ...current,
+                          stockQty: Number(event.target.value),
+                        }))
                       }
                       required
                     />
@@ -245,12 +262,16 @@ function AdminProductsPage() {
                   <ToggleField
                     label="Active"
                     checked={productForm.isActive}
-                    onCheckedChange={(isActive) => setProductForm((current) => ({ ...current, isActive }))}
+                    onCheckedChange={(isActive) =>
+                      setProductForm((current) => ({ ...current, isActive }))
+                    }
                   />
                   <ToggleField
                     label="Featured"
                     checked={productForm.isFeatured}
-                    onCheckedChange={(isFeatured) => setProductForm((current) => ({ ...current, isFeatured }))}
+                    onCheckedChange={(isFeatured) =>
+                      setProductForm((current) => ({ ...current, isFeatured }))
+                    }
                   />
                 </div>
                 <Button type="submit" disabled={productMutation.isPending}>
@@ -265,7 +286,11 @@ function AdminProductsPage() {
                   {categoryForm.id ? "Edit category" : "New category"}
                 </h2>
                 {categoryForm.id && (
-                  <Button variant="outline" size="sm" onClick={() => setCategoryForm(emptyCategory)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCategoryForm(emptyCategory)}
+                  >
                     <Plus />
                     New
                   </Button>
@@ -282,14 +307,18 @@ function AdminProductsPage() {
                   <Field label="Name">
                     <Input
                       value={categoryForm.name}
-                      onChange={(event) => setCategoryForm((current) => ({ ...current, name: event.target.value }))}
+                      onChange={(event) =>
+                        setCategoryForm((current) => ({ ...current, name: event.target.value }))
+                      }
                       required
                     />
                   </Field>
                   <Field label="Slug">
                     <Input
                       value={categoryForm.slug}
-                      onChange={(event) => setCategoryForm((current) => ({ ...current, slug: event.target.value }))}
+                      onChange={(event) =>
+                        setCategoryForm((current) => ({ ...current, slug: event.target.value }))
+                      }
                       placeholder="Auto from name"
                     />
                   </Field>
@@ -298,7 +327,9 @@ function AdminProductsPage() {
                   <Field label="Image URL">
                     <Input
                       value={categoryForm.imageUrl}
-                      onChange={(event) => setCategoryForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                      onChange={(event) =>
+                        setCategoryForm((current) => ({ ...current, imageUrl: event.target.value }))
+                      }
                     />
                   </Field>
                   <Field label="Sort">
@@ -307,7 +338,10 @@ function AdminProductsPage() {
                       min={0}
                       value={categoryForm.sortOrder}
                       onChange={(event) =>
-                        setCategoryForm((current) => ({ ...current, sortOrder: Number(event.target.value) }))
+                        setCategoryForm((current) => ({
+                          ...current,
+                          sortOrder: Number(event.target.value),
+                        }))
                       }
                     />
                   </Field>
@@ -365,7 +399,9 @@ function AdminProductsPage() {
                           <div className="text-xs text-muted-foreground">{product.slug}</div>
                         </TableCell>
                         <TableCell>{product.categories?.name ?? "None"}</TableCell>
-                        <TableCell className="text-right">{formatCents(product.price_cents)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCents(product.price_cents)}
+                        </TableCell>
                         <TableCell className="text-right">{product.stock_qty}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-1">

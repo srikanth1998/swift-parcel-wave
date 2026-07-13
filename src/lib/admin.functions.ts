@@ -27,14 +27,10 @@ const paymentStatusSchema = z.enum(["pending", "confirmed", "failed", "refunded"
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function requireUser() {
@@ -138,8 +134,14 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(async 
 
 const adminOrdersSchema = z.object({
   search: z.string().trim().max(100).optional().default(""),
-  orderStatus: z.union([orderStatusSchema, z.literal("all")]).optional().default("all"),
-  paymentStatus: z.union([paymentStatusSchema, z.literal("all")]).optional().default("all"),
+  orderStatus: z
+    .union([orderStatusSchema, z.literal("all")])
+    .optional()
+    .default("all"),
+  paymentStatus: z
+    .union([paymentStatusSchema, z.literal("all")])
+    .optional()
+    .default("all"),
   dateFrom: z.string().trim().optional().default(""),
   dateTo: z.string().trim().optional().default(""),
 });
@@ -169,7 +171,9 @@ export const getAdminOrders = createServerFn({ method: "GET" })
     const { data: items, error: itemsError } = orderIds.length
       ? await supabaseAdmin
           .from("order_items")
-          .select("id, order_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable")
+          .select(
+            "id, order_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable",
+          )
           .in("order_id", orderIds)
       : { data: [], error: null };
     if (itemsError) throw new Error(itemsError.message);

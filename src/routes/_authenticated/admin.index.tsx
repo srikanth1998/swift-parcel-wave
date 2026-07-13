@@ -39,7 +39,10 @@ function AdminDashboard() {
   }
 
   return (
-    <AdminPageFrame title="Back office" description="Monitor orders, catalog health, and daily operations.">
+    <AdminPageFrame
+      title="Back office"
+      description="Monitor orders, catalog health, and daily operations."
+    >
       {isLoading || !data ? (
         <div className="text-muted-foreground">Loading...</div>
       ) : (
@@ -47,7 +50,11 @@ function AdminDashboard() {
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <Metric icon={ShoppingBag} label="Orders 30d" value={data.stats.orders30d} />
             <Metric icon={PackageCheck} label="Open orders" value={data.stats.pendingOrders} />
-            <Metric icon={IndianRupee} label="Revenue 30d" value={formatCents(data.stats.revenue30dCents)} />
+            <Metric
+              icon={IndianRupee}
+              label="Revenue 30d"
+              value={formatCents(data.stats.revenue30dCents)}
+            />
             <Metric icon={AlertTriangle} label="Low stock" value={data.stats.lowStockProducts} />
             <Metric icon={Boxes} label="Inactive SKUs" value={data.stats.inactiveProducts} />
           </section>
@@ -88,7 +95,9 @@ function AdminDashboard() {
                           </TableCell>
                           <TableCell>{STATUS_LABEL[order.order_status]}</TableCell>
                           <TableCell className="capitalize">{order.payment_status}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCents(order.total)}</TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCents(order.total)}
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -117,7 +126,9 @@ function AdminDashboard() {
                     >
                       <div>
                         <div className="font-medium">{product.name}</div>
-                        <div className="text-xs text-muted-foreground">{formatCents(product.price_cents)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatCents(product.price_cents)}
+                        </div>
                       </div>
                       <div className="rounded-md bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
                         {product.stock_qty} left

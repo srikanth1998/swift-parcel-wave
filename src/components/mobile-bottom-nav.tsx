@@ -10,7 +10,12 @@ export function MobileBottomNav() {
 
   const items = [
     { to: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
-    { to: "/shop", label: "Shop", icon: LayoutGrid, match: (p: string) => p.startsWith("/shop") || p.startsWith("/product") },
+    {
+      to: "/shop",
+      label: "Shop",
+      icon: LayoutGrid,
+      match: (p: string) => p.startsWith("/shop") || p.startsWith("/product"),
+    },
     { to: "/cart", label: "Cart", icon: ShoppingCart, match: (p: string) => p.startsWith("/cart") },
     {
       to: user ? "/orders" : "/auth",

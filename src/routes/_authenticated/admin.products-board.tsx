@@ -23,11 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  bulkSetProductActive,
-  getAdminCatalog,
-  updateProductRow,
-} from "@/lib/admin.functions";
+import { bulkSetProductActive, getAdminCatalog, updateProductRow } from "@/lib/admin.functions";
 
 type CatalogProduct = Awaited<ReturnType<typeof getAdminCatalog>>["products"][number];
 
@@ -110,12 +106,14 @@ function AdminProductsBoardPage() {
     if (!data) return;
     setEdits((prev) => {
       const next = { ...prev };
-      for (const product of data.products) if (!next[product.id]) next[product.id] = buildRow(product);
+      for (const product of data.products)
+        if (!next[product.id]) next[product.id] = buildRow(product);
       return next;
     });
     setOriginals((prev) => {
       const next = { ...prev };
-      for (const product of data.products) if (!next[product.id]) next[product.id] = buildRow(product);
+      for (const product of data.products)
+        if (!next[product.id]) next[product.id] = buildRow(product);
       return next;
     });
   }, [data]);
@@ -138,7 +136,9 @@ function AdminProductsBoardPage() {
 
   const saveAll = useMutation({
     mutationFn: async (rows: { id: string; row: RowEdit }[]) => {
-      await Promise.all(rows.map((entry) => updateProductRow({ data: toPayload(entry.id, entry.row) })));
+      await Promise.all(
+        rows.map((entry) => updateProductRow({ data: toPayload(entry.id, entry.row) })),
+      );
       return rows;
     },
     onSuccess: (rows) => {
@@ -153,7 +153,8 @@ function AdminProductsBoardPage() {
   });
 
   const bulkActive = useMutation({
-    mutationFn: (vars: { ids: string[]; isActive: boolean }) => bulkSetProductActive({ data: vars }),
+    mutationFn: (vars: { ids: string[]; isActive: boolean }) =>
+      bulkSetProductActive({ data: vars }),
     onSuccess: (_result, vars) => {
       const apply = (map: Record<string, RowEdit>) => {
         const next = { ...map };
@@ -165,7 +166,9 @@ function AdminProductsBoardPage() {
       setEdits(apply);
       setOriginals(apply);
       setSelected(new Set());
-      toast.success(`${vars.ids.length} product${vars.ids.length === 1 ? "" : "s"} ${vars.isActive ? "activated" : "hidden"}`);
+      toast.success(
+        `${vars.ids.length} product${vars.ids.length === 1 ? "" : "s"} ${vars.isActive ? "activated" : "hidden"}`,
+      );
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Update failed"),
   });
@@ -237,7 +240,10 @@ function AdminProductsBoardPage() {
               placeholder="Search products"
               className="h-9 w-full sm:w-64"
             />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+            >
               <SelectTrigger className="h-9 w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -396,7 +402,9 @@ function AdminProductsBoardPage() {
                         <TableCell>
                           <Input
                             value={row.unitLabel}
-                            onChange={(event) => setField(product.id, { unitLabel: event.target.value })}
+                            onChange={(event) =>
+                              setField(product.id, { unitLabel: event.target.value })
+                            }
                             className="h-8"
                           />
                         </TableCell>

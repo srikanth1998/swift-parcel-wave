@@ -26,10 +26,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
   refunded: "Refunded",
 };
 
-export const STATUS_NOTIFICATION: Record<
-  OrderStatus,
-  { title: string; body: string } | null
-> = {
+export const STATUS_NOTIFICATION: Record<OrderStatus, { title: string; body: string } | null> = {
   order_placed: {
     title: "Order received",
     body: "Thanks! We've received your FEABazaar order.",

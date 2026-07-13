@@ -40,14 +40,10 @@ const commissionStatusSchema = z.enum(["pending", "approved", "paid", "cancelled
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function requireUser() {
@@ -158,7 +154,9 @@ export const getReferralDashboard = createServerFn({ method: "GET" }).handler(as
 
   const commissions = (commissionRows ?? []) as ReferralCommission[];
   const orderMap = mapById(await fetchOrdersByIds(unique(commissions.map((row) => row.order_id))));
-  const buyerMap = mapById(await fetchProfilesByIds(unique(commissions.map((row) => row.buyer_id))));
+  const buyerMap = mapById(
+    await fetchProfilesByIds(unique(commissions.map((row) => row.buyer_id))),
+  );
   const activeBuyerIds = unique(
     commissions
       .filter((commission) => commission.status !== "cancelled")
@@ -210,7 +208,10 @@ export const getReferralDashboard = createServerFn({ method: "GET" }).handler(as
 
 const adminReferralQuerySchema = z.object({
   search: z.string().trim().max(100).optional().default(""),
-  status: z.union([commissionStatusSchema, z.literal("all")]).optional().default("all"),
+  status: z
+    .union([commissionStatusSchema, z.literal("all")])
+    .optional()
+    .default("all"),
   referralLevel: z.enum(["all", "1", "2"]).optional().default("all"),
   dateFrom: z.string().trim().optional().default(""),
   dateTo: z.string().trim().optional().default(""),
@@ -277,7 +278,9 @@ export const getAdminReferralManagement = createServerFn({ method: "GET" })
     users.forEach((user) => allProfiles.set(user.id, user));
     hierarchyProfiles.forEach((user) => allProfiles.set(user.id, user));
 
-    const orderMap = mapById(await fetchOrdersByIds(unique(commissions.map((row) => row.order_id))));
+    const orderMap = mapById(
+      await fetchOrdersByIds(unique(commissions.map((row) => row.order_id))),
+    );
     const directCounts = hierarchyProfiles.reduce<Record<string, number>>((acc, user) => {
       if (user.referred_by_user_id) {
         acc[user.referred_by_user_id] = (acc[user.referred_by_user_id] ?? 0) + 1;

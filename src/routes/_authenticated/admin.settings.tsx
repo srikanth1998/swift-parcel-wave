@@ -138,7 +138,9 @@ function AdminSettingsPage() {
                   min={0}
                   step="1"
                   value={form.deliveryChargeRupees}
-                  onChange={(e) => setForm({ ...form, deliveryChargeRupees: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setForm({ ...form, deliveryChargeRupees: Number(e.target.value) })
+                  }
                   required
                 />
               </Field>

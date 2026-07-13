@@ -83,11 +83,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             )}
           </div>
           {inCart ? (
-            <QuantityStepper
-              size="sm"
-              value={inCart.qty}
-              onChange={(n) => setQty(product.id, n)}
-            />
+            <QuantityStepper size="sm" value={inCart.qty} onChange={(n) => setQty(product.id, n)} />
           ) : (
             <Button
               size="sm"

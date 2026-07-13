@@ -9,14 +9,10 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 function userScopedClient() {
   const auth = getRequestHeader("authorization");
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    global: token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function requireRole(allowedRoles: AppRole[]) {
@@ -70,11 +66,7 @@ export const getAdminInventory = createServerFn({ method: "GET" }).handler(async
       stockQty: product.stock_qty,
       category: product.categories?.name ?? null,
       status:
-        product.stock_qty <= 0
-          ? "out"
-          : product.stock_qty <= LOW_STOCK_THRESHOLD
-            ? "low"
-            : "ok",
+        product.stock_qty <= 0 ? "out" : product.stock_qty <= LOW_STOCK_THRESHOLD ? "low" : "ok",
     })),
     recentAdjustments: (adjustments ?? []).map((adjustment) => ({
       ...adjustment,

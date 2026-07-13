@@ -38,7 +38,12 @@ export function NotificationsBell({ userId }: { userId: string }) {
       .channel(`notif-${userId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
         (payload) => setItems((prev) => [payload.new as Notif, ...prev].slice(0, 20)),
       )
       .subscribe();
@@ -53,7 +58,10 @@ export function NotificationsBell({ userId }: { userId: string }) {
   const markAllRead = async () => {
     const unreadIds = items.filter((n) => !n.read_at).map((n) => n.id);
     if (unreadIds.length === 0) return;
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).in("id", unreadIds);
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", unreadIds);
     setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
   };
 

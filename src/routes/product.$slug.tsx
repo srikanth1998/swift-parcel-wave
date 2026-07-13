@@ -31,7 +31,9 @@ export const Route = createFileRoute("/product/$slug")({
           { name: "description", content: loaderData.product.description ?? "" },
           { property: "og:title", content: `${loaderData.product.name} — FEABazaar` },
           { property: "og:description", content: loaderData.product.description ?? "" },
-          ...(loaderData.product.image_url ? [{ property: "og:image", content: loaderData.product.image_url }] : []),
+          ...(loaderData.product.image_url
+            ? [{ property: "og:image", content: loaderData.product.image_url }]
+            : []),
         ]
       : [],
   }),
@@ -39,7 +41,9 @@ export const Route = createFileRoute("/product/$slug")({
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
       <h1 className="font-display text-2xl">Product not found</h1>
-      <Link to="/shop" className="mt-4 inline-block text-primary hover:underline">Back to shop</Link>
+      <Link to="/shop" className="mt-4 inline-block text-primary hover:underline">
+        Back to shop
+      </Link>
     </div>
   ),
   errorComponent: () => (
@@ -74,13 +78,21 @@ function ProductPage() {
     <div className="bg-muted/30">
       <div className="mx-auto max-w-6xl px-4 pt-6">
         <nav className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Link to="/" className="hover:text-primary">Home</Link>
+          <Link to="/" className="hover:text-primary">
+            Home
+          </Link>
           <ChevronRight className="h-3 w-3" />
-          <Link to="/shop" className="hover:text-primary">Shop</Link>
+          <Link to="/shop" className="hover:text-primary">
+            Shop
+          </Link>
           {product.categories && (
             <>
               <ChevronRight className="h-3 w-3" />
-              <Link to="/shop" search={{ category: product.categories.slug }} className="hover:text-primary">
+              <Link
+                to="/shop"
+                search={{ category: product.categories.slug }}
+                className="hover:text-primary"
+              >
                 {product.categories.name}
               </Link>
             </>
@@ -101,7 +113,11 @@ function ProductPage() {
                 </span>
               )}
               {product.image_url ? (
-                <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <div className="flex h-full items-center justify-center text-muted-foreground">
                   <ImageOff className="h-10 w-10" />
@@ -149,7 +165,8 @@ function ProductPage() {
               )}
             </div>
             <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-              <span className="inline-block h-2 w-2 rounded-full bg-primary" /> In stock — usually packed the same day
+              <span className="inline-block h-2 w-2 rounded-full bg-primary" /> In stock — usually
+              packed the same day
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -185,15 +202,25 @@ function ProductPage() {
             </div>
 
             <div className="mt-6 grid gap-2 rounded-xl bg-primary/5 p-3 text-xs sm:grid-cols-3">
-              <span className="inline-flex items-center gap-1.5 text-foreground"><Truck className="h-3.5 w-3.5 text-primary" /> Free delivery over ₹499</span>
-              <span className="inline-flex items-center gap-1.5 text-foreground"><Leaf className="h-3.5 w-3.5 text-primary" /> Farm-fresh from warehouse</span>
-              <span className="inline-flex items-center gap-1.5 text-foreground"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> Quality-checked</span>
+              <span className="inline-flex items-center gap-1.5 text-foreground">
+                <Truck className="h-3.5 w-3.5 text-primary" /> Free delivery over ₹499
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-foreground">
+                <Leaf className="h-3.5 w-3.5 text-primary" /> Farm-fresh from warehouse
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-foreground">
+                <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Quality-checked
+              </span>
             </div>
 
             {product.description && (
               <div className="mt-6">
-                <h2 className="font-display text-sm font-bold uppercase tracking-wide text-muted-foreground">Description</h2>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">{product.description}</p>
+                <h2 className="font-display text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                  Description
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground">
+                  {product.description}
+                </p>
               </div>
             )}
           </div>
@@ -203,7 +230,11 @@ function ProductPage() {
           <section className="mt-8">
             <div className="mb-3 flex items-end justify-between">
               <h2 className="font-display text-xl font-bold">You may also like</h2>
-              <Link to="/shop" search={product.categories ? { category: product.categories.slug } : {}} className="text-sm font-semibold text-primary hover:underline">
+              <Link
+                to="/shop"
+                search={product.categories ? { category: product.categories.slug } : {}}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
                 View all →
               </Link>
             </div>

@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    ref: typeof search.ref === "string" ? search.ref : undefined,
+  validateSearch: (search: Record<string, unknown>): { ref?: string } => ({
+    ...(typeof search.ref === "string" ? { ref: search.ref } : {}),
   }),
   head: () => ({ meta: [{ title: "Sign in — FEABazaar" }] }),
   component: AuthPage,
@@ -68,7 +68,18 @@ function AuthPage() {
       }
       navigate({ to: "/" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      // A signup rejected by the database (e.g. the referral-code validation
+      // trigger) surfaces from GoTrue as an opaque "Database error saving new
+      // user" / empty-body error. Map it to something actionable.
+      const raw = err instanceof Error ? err.message : "";
+      const opaque = !raw || raw === "{}" || /database error/i.test(raw);
+      if (mode === "sign_up" && opaque && referralCode.trim()) {
+        toast.error("Sign-up failed. Please double-check your referral code — it may be invalid.");
+      } else if (opaque) {
+        toast.error("Something went wrong. Please try again.");
+      } else {
+        toast.error(raw);
+      }
     } finally {
       setLoading(false);
     }
@@ -81,7 +92,9 @@ function AuthPage() {
           {mode === "sign_in" ? "Welcome back" : "Create an account"}
         </h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">
-          {mode === "sign_in" ? "Sign in to your FEABazaar account" : "Sign up to track your orders"}
+          {mode === "sign_in"
+            ? "Sign in to your FEABazaar account"
+            : "Sign up to track your orders"}
         </p>
 
         <Button variant="outline" className="mt-6 w-full" onClick={handleGoogle} type="button">
@@ -97,7 +110,12 @@ function AuthPage() {
           {mode === "sign_up" && (
             <div>
               <Label htmlFor="fullName">Full name</Label>
-              <Input id="fullName" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <Input
+                id="fullName"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
             </div>
           )}
           {mode === "sign_up" && (
@@ -114,11 +132,24 @@ function AuthPage() {
           )}
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              id="email"
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input id="password" required type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input
+              id="password"
+              required
+              type="password"
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "…" : mode === "sign_in" ? "Sign in" : "Create account"}
@@ -136,7 +167,10 @@ function AuthPage() {
           </button>
         </div>
         <div className="mt-6 text-center text-xs text-muted-foreground">
-          Or <Link to="/shop" className="text-primary hover:underline">continue as a guest</Link>
+          Or{" "}
+          <Link to="/shop" className="text-primary hover:underline">
+            continue as a guest
+          </Link>
         </div>
       </div>
     </div>

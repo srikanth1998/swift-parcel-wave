@@ -20,7 +20,10 @@ function hashString(s: string): number {
  * Not persisted — same input always returns same output (SSR-safe).
  * Returns null for ~40% of products (no offer badge).
  */
-export function deriveOffer(slug: string, priceCents: number): { mrpCents: number; discountPct: number } | null {
+export function deriveOffer(
+  slug: string,
+  priceCents: number,
+): { mrpCents: number; discountPct: number } | null {
   const h = hashString(slug);
   if (h % 10 < 4) return null;
   const options = [8, 12, 15, 20, 25, 30, 35];

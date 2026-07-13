@@ -26,7 +26,9 @@ function MyOrders() {
         <div className="mt-16 rounded-2xl border border-border bg-card p-12 text-center">
           <Package className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 text-muted-foreground">You don't have any orders yet.</p>
-          <Link to="/shop" className="mt-4 inline-block font-medium text-primary hover:underline">Start shopping →</Link>
+          <Link to="/shop" className="mt-4 inline-block font-medium text-primary hover:underline">
+            Start shopping →
+          </Link>
         </div>
       ) : (
         <ul className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">

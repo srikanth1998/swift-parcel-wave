@@ -29,8 +29,7 @@ export const Route = createFileRoute("/shop")({
       }),
       context.queryClient.ensureQueryData({
         queryKey: ["products", { category: deps.category ?? null }],
-        queryFn: () =>
-          listProducts({ data: deps.category ? { categorySlug: deps.category } : {} }),
+        queryFn: () => listProducts({ data: deps.category ? { categorySlug: deps.category } : {} }),
       }),
     ]);
   },
@@ -71,7 +70,11 @@ function Shop() {
     if (sort === "price-asc") sorted.sort((a, b) => a.price_cents - b.price_cents);
     if (sort === "price-desc") sorted.sort((a, b) => b.price_cents - a.price_cents);
     if (sort === "discount") {
-      sorted.sort((a, b) => (deriveOffer(b.slug, b.price_cents)?.discountPct ?? 0) - (deriveOffer(a.slug, a.price_cents)?.discountPct ?? 0));
+      sorted.sort(
+        (a, b) =>
+          (deriveOffer(b.slug, b.price_cents)?.discountPct ?? 0) -
+          (deriveOffer(a.slug, a.price_cents)?.discountPct ?? 0),
+      );
     }
     return sorted;
   }, [products, query, priceMax, onlyDiscounted, sort]);
@@ -92,9 +95,13 @@ function Shop() {
       {/* Breadcrumb + heading */}
       <div className="mx-auto max-w-7xl px-4 pt-6">
         <nav className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Link to="/" className="hover:text-primary">Home</Link>
+          <Link to="/" className="hover:text-primary">
+            Home
+          </Link>
           <ChevronRight className="h-3 w-3" />
-          <Link to="/shop" className="hover:text-primary">Shop</Link>
+          <Link to="/shop" className="hover:text-primary">
+            Shop
+          </Link>
           {activeCategory && (
             <>
               <ChevronRight className="h-3 w-3" />
@@ -150,7 +157,9 @@ function Shop() {
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[240px_1fr]">
         <aside className="hidden lg:block">
-          <div className="sticky top-32 rounded-2xl border border-border bg-card p-4">{filters}</div>
+          <div className="sticky top-32 rounded-2xl border border-border bg-card p-4">
+            {filters}
+          </div>
         </aside>
 
         <div>
@@ -164,7 +173,9 @@ function Shop() {
             <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
               <div className="text-4xl">🧺</div>
               <div className="mt-2 font-display text-lg font-semibold">No products match</div>
-              <p className="mt-1 text-sm text-muted-foreground">Try clearing filters or searching differently.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try clearing filters or searching differently.
+              </p>
               <Button
                 variant="outline"
                 className="mt-4"
@@ -233,7 +244,10 @@ function FilterPanel({
             { label: "Under ₹500", value: 50000 },
             { label: "Under ₹1,000", value: 100000 },
           ].map((opt) => (
-            <label key={opt.value} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted">
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
+            >
               <Checkbox
                 checked={priceMax === opt.value}
                 onCheckedChange={(v) => setPriceMax(v ? opt.value : null)}
@@ -257,7 +271,9 @@ function FilterPanel({
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
+      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </div>
       {children}
     </div>
   );

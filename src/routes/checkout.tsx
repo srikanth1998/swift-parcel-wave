@@ -132,7 +132,10 @@ function Checkout() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto grid max-w-5xl gap-8 px-4 py-8 md:grid-cols-[1fr_340px]">
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto grid max-w-5xl gap-8 px-4 py-8 md:grid-cols-[1fr_340px]"
+    >
       <div className="space-y-8">
         <h1 className="font-display text-3xl font-semibold">Checkout</h1>
 
@@ -140,13 +143,29 @@ function Checkout() {
           <h2 className="font-display text-lg font-semibold">Contact</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Full name" required>
-              <Input required maxLength={100} value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+              <Input
+                required
+                maxLength={100}
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              />
             </Field>
             <Field label="Phone number" required>
-              <Input required maxLength={30} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Input
+                required
+                maxLength={30}
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
             </Field>
             <Field label="Email address" required className="md:col-span-2">
-              <Input required type="email" maxLength={255} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Input
+                required
+                type="email"
+                maxLength={255}
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
             </Field>
           </div>
         </section>
@@ -155,24 +174,55 @@ function Checkout() {
           <h2 className="font-display text-lg font-semibold">Delivery address</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Street address" required className="md:col-span-2">
-              <Input required maxLength={200} value={form.line1} onChange={(e) => setForm({ ...form, line1: e.target.value })} />
+              <Input
+                required
+                maxLength={200}
+                value={form.line1}
+                onChange={(e) => setForm({ ...form, line1: e.target.value })}
+              />
             </Field>
             <Field label="Apartment or unit (optional)" className="md:col-span-2">
-              <Input maxLength={100} value={form.line2} onChange={(e) => setForm({ ...form, line2: e.target.value })} />
+              <Input
+                maxLength={100}
+                value={form.line2}
+                onChange={(e) => setForm({ ...form, line2: e.target.value })}
+              />
             </Field>
             <Field label="City" required>
-              <Input required maxLength={100} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <Input
+                required
+                maxLength={100}
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
             </Field>
             <Field label="State" required>
-              <Input required maxLength={60} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+              <Input
+                required
+                maxLength={60}
+                value={form.state}
+                onChange={(e) => setForm({ ...form, state: e.target.value })}
+              />
             </Field>
             <Field label="PIN code" required>
-              <Input required inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="6-digit PIN"
-                value={form.zip} onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })} />
+              <Input
+                required
+                inputMode="numeric"
+                pattern="\d{6}"
+                maxLength={6}
+                placeholder="6-digit PIN"
+                value={form.zip}
+                onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })}
+              />
             </Field>
             <Field label="Delivery instructions" className="md:col-span-2">
-              <Textarea rows={2} maxLength={500} placeholder="e.g., Leave at the front door"
-                value={form.deliveryInstructions} onChange={(e) => setForm({ ...form, deliveryInstructions: e.target.value })} />
+              <Textarea
+                rows={2}
+                maxLength={500}
+                placeholder="e.g., Leave at the front door"
+                value={form.deliveryInstructions}
+                onChange={(e) => setForm({ ...form, deliveryInstructions: e.target.value })}
+              />
             </Field>
           </div>
         </section>
@@ -188,9 +238,16 @@ function Checkout() {
             <Field label="If an item is unavailable">
               <Select
                 value={form.substitutionPreference}
-                onValueChange={(v) => setForm({ ...form, substitutionPreference: v as typeof form.substitutionPreference })}
+                onValueChange={(v) =>
+                  setForm({
+                    ...form,
+                    substitutionPreference: v as typeof form.substitutionPreference,
+                  })
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="replace_similar">Replace with a similar item</SelectItem>
                   <SelectItem value="refund_if_unavailable">Refund the item</SelectItem>
@@ -199,15 +256,24 @@ function Checkout() {
               </Select>
             </Field>
             <Field label="Order notes (optional)">
-              <Textarea rows={2} maxLength={500} placeholder="Anything else we should know?"
-                value={form.customerNotes} onChange={(e) => setForm({ ...form, customerNotes: e.target.value })} />
+              <Textarea
+                rows={2}
+                maxLength={500}
+                placeholder="Anything else we should know?"
+                value={form.customerNotes}
+                onChange={(e) => setForm({ ...form, customerNotes: e.target.value })}
+              />
             </Field>
           </div>
         </section>
 
         {!user && (
           <div className="rounded-lg bg-secondary/60 p-4 text-sm text-muted-foreground">
-            Ordering as a guest. <Link to="/auth" className="text-primary hover:underline">Sign in</Link> to track this and future orders.
+            Ordering as a guest.{" "}
+            <Link to="/auth" className="text-primary hover:underline">
+              Sign in
+            </Link>{" "}
+            to track this and future orders.
           </div>
         )}
       </div>
@@ -217,8 +283,12 @@ function Checkout() {
         <ul className="mt-4 space-y-2 text-sm">
           {items.map((i) => (
             <li key={i.productId} className="flex justify-between gap-2">
-              <span className="min-w-0 truncate">{i.qty} × {i.name}</span>
-              <span className="font-medium whitespace-nowrap">{formatCents(i.priceCents * i.qty)}</span>
+              <span className="min-w-0 truncate">
+                {i.qty} × {i.name}
+              </span>
+              <span className="font-medium whitespace-nowrap">
+                {formatCents(i.priceCents * i.qty)}
+              </span>
             </li>
           ))}
         </ul>
@@ -230,7 +300,11 @@ function Checkout() {
               <span className="font-medium text-emerald-800">
                 Coupon <span className="font-mono">{coupon.code}</span> applied
               </span>
-              <button type="button" onClick={removeCoupon} className="text-xs font-medium text-emerald-700 hover:underline">
+              <button
+                type="button"
+                onClick={removeCoupon}
+                className="text-xs font-medium text-emerald-700 hover:underline"
+              >
                 Remove
               </button>
             </div>
@@ -248,7 +322,12 @@ function Checkout() {
                   }
                 }}
               />
-              <Button type="button" variant="secondary" onClick={applyCoupon} disabled={couponChecking || !couponInput.trim()}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={applyCoupon}
+                disabled={couponChecking || !couponInput.trim()}
+              >
                 {couponChecking ? "…" : "Apply"}
               </Button>
             </div>
@@ -281,11 +360,22 @@ function Checkout() {
   );
 }
 
-function Field({ label, required, className, children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  className,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className={className}>
       <Label className="mb-1.5 block text-sm">
-        {label}{required && <span className="text-accent"> *</span>}
+        {label}
+        {required && <span className="text-accent"> *</span>}
       </Label>
       {children}
     </div>

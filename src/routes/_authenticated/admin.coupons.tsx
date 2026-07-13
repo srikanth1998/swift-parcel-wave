@@ -171,7 +171,10 @@ function AdminCouponsPage() {
                     <Input
                       value={form.code}
                       onChange={(event) =>
-                        setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))
+                        setForm((current) => ({
+                          ...current,
+                          code: event.target.value.toUpperCase(),
+                        }))
                       }
                       placeholder="WELCOME10"
                       required
@@ -228,7 +231,10 @@ function AdminCouponsPage() {
                       min={0}
                       value={form.minOrderRupees}
                       onChange={(event) =>
-                        setForm((current) => ({ ...current, minOrderRupees: Number(event.target.value) }))
+                        setForm((current) => ({
+                          ...current,
+                          minOrderRupees: Number(event.target.value),
+                        }))
                       }
                     />
                   </Field>
@@ -241,7 +247,10 @@ function AdminCouponsPage() {
                       min={0}
                       value={form.maxDiscountRupees}
                       onChange={(event) =>
-                        setForm((current) => ({ ...current, maxDiscountRupees: Number(event.target.value) }))
+                        setForm((current) => ({
+                          ...current,
+                          maxDiscountRupees: Number(event.target.value),
+                        }))
                       }
                     />
                   </Field>
@@ -254,7 +263,10 @@ function AdminCouponsPage() {
                       min={0}
                       value={form.usageLimit}
                       onChange={(event) =>
-                        setForm((current) => ({ ...current, usageLimit: Number(event.target.value) }))
+                        setForm((current) => ({
+                          ...current,
+                          usageLimit: Number(event.target.value),
+                        }))
                       }
                     />
                   </Field>
@@ -264,7 +276,10 @@ function AdminCouponsPage() {
                       min={0}
                       value={form.perUserLimit}
                       onChange={(event) =>
-                        setForm((current) => ({ ...current, perUserLimit: Number(event.target.value) }))
+                        setForm((current) => ({
+                          ...current,
+                          perUserLimit: Number(event.target.value),
+                        }))
                       }
                     />
                   </Field>
@@ -337,7 +352,9 @@ function AdminCouponsPage() {
                         <TableCell>
                           <div className="font-mono font-medium">{coupon.code}</div>
                           {coupon.description && (
-                            <div className="text-xs text-muted-foreground">{coupon.description}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {coupon.description}
+                            </div>
                           )}
                         </TableCell>
                         <TableCell>{describeValue(coupon.type, coupon.value)}</TableCell>
@@ -374,9 +391,7 @@ function AdminCouponsPage() {
                                 description: coupon.description ?? "",
                                 type: coupon.type,
                                 value:
-                                  coupon.type === "percentage"
-                                    ? coupon.value
-                                    : coupon.value / 100,
+                                  coupon.type === "percentage" ? coupon.value : coupon.value / 100,
                                 minOrderRupees: coupon.min_order_cents / 100,
                                 maxDiscountRupees:
                                   coupon.max_discount_cents != null

@@ -187,7 +187,11 @@ function ReferralDashboard() {
         <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard icon={Users} label="Total referrals" value={data.stats.totalReferrals} />
           <StatCard icon={Network} label="Active referrals" value={data.stats.activeReferrals} />
-          <StatCard icon={ShoppingBag} label="Orders generated" value={data.stats.ordersGenerated} />
+          <StatCard
+            icon={ShoppingBag}
+            label="Orders generated"
+            value={data.stats.ordersGenerated}
+          />
           <StatCard
             icon={BadgeIndianRupee}
             label="Paid earnings"
@@ -200,7 +204,9 @@ function ReferralDashboard() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="font-display text-xl font-semibold">Referral Tree</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Two levels are shown by default.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Two levels are shown by default.
+                </p>
               </div>
             </div>
             <div className="mt-5 space-y-3">
@@ -220,14 +226,22 @@ function ReferralDashboard() {
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-secondary"
-                          onClick={() => setExpanded((current) => ({ ...current, [direct.id]: !isOpen }))}
+                          onClick={() =>
+                            setExpanded((current) => ({ ...current, [direct.id]: !isOpen }))
+                          }
                         >
                           {direct.children.length > 0 ? (
-                            isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                            isOpen ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )
                           ) : (
                             <span className="w-4" />
                           )}
-                          <span className="font-medium">{direct.full_name || direct.referral_code}</span>
+                          <span className="font-medium">
+                            {direct.full_name || direct.referral_code}
+                          </span>
                           <Badge variant="outline" className="ml-auto">
                             L1
                           </Badge>
@@ -259,16 +273,18 @@ function ReferralDashboard() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-display text-xl font-semibold">Commission History</h2>
               <div className="flex flex-wrap gap-2">
-                {(["all", "pending", "approved", "paid", "cancelled"] as StatusFilter[]).map((status) => (
-                  <Button
-                    key={status}
-                    size="sm"
-                    variant={statusFilter === status ? "default" : "outline"}
-                    onClick={() => setStatusFilter(status)}
-                  >
-                    {STATUS_LABEL[status]}
-                  </Button>
-                ))}
+                {(["all", "pending", "approved", "paid", "cancelled"] as StatusFilter[]).map(
+                  (status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={statusFilter === status ? "default" : "outline"}
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {STATUS_LABEL[status]}
+                    </Button>
+                  ),
+                )}
               </div>
             </div>
 
@@ -303,7 +319,9 @@ function ReferralDashboard() {
                         <TableCell>
                           <div className="font-medium">{item.orderNumber}</div>
                         </TableCell>
-                        <TableCell className="text-right">{formatCents(item.orderAmountCents)}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCents(item.orderAmountCents)}
+                        </TableCell>
                         <TableCell>L{item.referralLevel}</TableCell>
                         <TableCell>{item.percentage}%</TableCell>
                         <TableCell className="text-right font-medium">
