@@ -106,53 +106,65 @@ export const placeOrder = createServerFn({ method: "POST" })
       subtotal >= settings.freeDeliveryThresholdCents ? 0 : settings.deliveryChargeCents;
     const total = taxableBase + tax + delivery_charge;
 
-    const { data: addr, error: addrErr } = await supabase
-      .from("delivery_addresses")
-      .insert({
-        customer_id: userId,
-        full_name: data.fullName,
-        phone: data.phone,
-        email: data.email,
-        line1: data.line1,
-        line2: data.line2 || null,
-        city: data.city,
-        state: data.state,
-        zip: data.zip,
-        instructions: data.deliveryInstructions || null,
-      })
-      .select("id")
-      .single();
-    if (addrErr || !addr) throw new Error(addrErr?.message ?? "Failed to save address");
+    // IDs are generated here instead of relying on INSERT ... RETURNING:
+    // guests (anon role) may INSERT under RLS but have no SELECT policy, so a
+    // chained .select() would fail with an RLS violation. With known IDs the
+    // inserts need no RETURNING and work for guests and signed-in users alike.
+    const addressId = crypto.randomUUID();
+    const { error: addrErr } = await supabase.from("delivery_addresses").insert({
+      id: addressId,
+      customer_id: userId,
+      full_name: data.fullName,
+      phone: data.phone,
+      email: data.email,
+      line1: data.line1,
+      line2: data.line2 || null,
+      city: data.city,
+      state: data.state,
+      zip: data.zip,
+      instructions: data.deliveryInstructions || null,
+    });
+    if (addrErr) throw new Error(addrErr.message);
 
+    const orderId = crypto.randomUUID();
     const orderNumber = generateOrderNumber();
-    const { data: order, error: orderErr } = await supabase
-      .from("orders")
-      .insert({
-        order_number: orderNumber,
-        customer_id: userId,
-        delivery_address_id: addr.id,
-        order_status: "order_placed",
-        payment_method: "cod",
-        payment_status: "pending",
-        subtotal,
-        discount,
-        tax,
-        delivery_charge,
-        total,
-        coupon_id: couponId,
-        coupon_code: couponCode,
-        customer_notes: data.customerNotes || null,
-        delivery_instructions: data.deliveryInstructions || null,
-        substitution_preference: data.substitutionPreference,
-      })
-      .select("id, order_number")
-      .single();
-    if (orderErr || !order) throw new Error(orderErr?.message ?? "Failed to create order");
+    const { error: orderErr } = await supabase.from("orders").insert({
+      id: orderId,
+      order_number: orderNumber,
+      customer_id: userId,
+      delivery_address_id: addressId,
+      order_status: "order_placed",
+      payment_method: "cod",
+      payment_status: "pending",
+      subtotal,
+      discount,
+      tax,
+      delivery_charge,
+      total,
+      coupon_id: couponId,
+      coupon_code: couponCode,
+      customer_notes: data.customerNotes || null,
+      delivery_instructions: data.deliveryInstructions || null,
+      substitution_preference: data.substitutionPreference,
+    });
+    if (orderErr) throw new Error(orderErr.message);
+
+    const order = { id: orderId, order_number: orderNumber };
 
     const { error: itemsErr } = await supabase
       .from("order_items")
       .insert(orderItemRows.map((r) => ({ ...r, order_id: order.id })));
-    if (itemsErr) throw new Error(itemsErr.message);
+    if (itemsErr) {
+      // Best-effort cleanup so a failed items insert doesn't leave an orphan
+      // order behind (deleting the order cascades any inserted items).
+      try {
+        await supabaseAdmin.from("orders").delete().eq("id", order.id);
+        await supabaseAdmin.from("delivery_addresses").delete().eq("id", addressId);
+      } catch (cleanupErr) {
+        console.error("[placeOrder] orphan cleanup failed:", cleanupErr);
+      }
+      throw new Error(itemsErr.message);
+    }
 
     // Post-order bookkeeping. The order already exists, so failures here are
     // logged but never surfaced as a checkout failure to the customer.
