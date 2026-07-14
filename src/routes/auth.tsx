@@ -27,17 +27,6 @@ function AuthPage() {
   const [referralCode, setReferralCode] = useState(initialReferralCode);
   const [loading, setLoading] = useState(false);
 
-  const handleGoogle = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin },
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -97,16 +86,7 @@ function AuthPage() {
             : "Sign up to track your orders"}
         </p>
 
-        <Button variant="outline" className="mt-6 w-full" onClick={handleGoogle} type="button">
-          Continue with Google
-        </Button>
-        <div className="my-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs uppercase tracking-wide text-muted-foreground">or</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {mode === "sign_up" && (
             <div>
               <Label htmlFor="fullName">Full name</Label>
