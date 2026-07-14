@@ -7,12 +7,17 @@ export function MobileBottomNav() {
   const { itemCount, hydrated } = useCart();
   const { user } = useAuthUser();
 
-  const items = [
+  const items: Array<{
+    to: "/" | "/shop" | "/cart" | "/orders" | "/auth";
+    label: string;
+    icon: typeof Home;
+    badge?: number;
+  }> = [
     { to: "/", label: "Home", icon: Home },
     { to: "/shop", label: "Shop", icon: Store },
     { to: "/cart", label: "Cart", icon: ShoppingCart, badge: hydrated ? itemCount : 0 },
     { to: user ? "/orders" : "/auth", label: user ? "Orders" : "Sign in", icon: User },
-  ] as const;
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
