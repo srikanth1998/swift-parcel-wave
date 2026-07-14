@@ -7,8 +7,73 @@ import { useCart } from "@/hooks/use-cart";
 import { formatCents } from "@/lib/format";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { ProductCard } from "@/components/product-card";
-import { ChevronRight, Heart, Leaf, ShieldCheck, Truck, ImageOff } from "lucide-react";
+import {
+  ChevronRight,
+  Heart,
+  Leaf,
+  ShieldCheck,
+  Truck,
+  ImageOff,
+  Snowflake,
+  Wheat,
+  Fish,
+  Milk,
+  Sparkles,
+  Coffee,
+  Package,
+} from "lucide-react";
 import { toast } from "sonner";
+
+type TrustTag = { icon: React.ComponentType<{ className?: string }>; label: string };
+
+const DEFAULT_TAGS: TrustTag[] = [
+  { icon: Truck, label: "Free delivery over ₹499" },
+  { icon: Leaf, label: "Farm-fresh from warehouse" },
+  { icon: ShieldCheck, label: "Quality-checked" },
+];
+
+const CATEGORY_TAGS: Record<string, TrustTag[]> = {
+  "fruits-vegetables": [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Leaf, label: "Farm-fresh daily" },
+    { icon: ShieldCheck, label: "Hand-picked & sorted" },
+  ],
+  "dairy-eggs": [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Snowflake, label: "Cold-chain delivered" },
+    { icon: Milk, label: "Sourced from local dairies" },
+  ],
+  bakery: [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Wheat, label: "Baked fresh" },
+    { icon: ShieldCheck, label: "No preservatives" },
+  ],
+  "meat-seafood": [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Snowflake, label: "Cold-chain delivered" },
+    { icon: Fish, label: "Fresh from source" },
+  ],
+  pantry: [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Package, label: "Sealed & tamper-proof" },
+    { icon: ShieldCheck, label: "Quality-checked" },
+  ],
+  beverages: [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Coffee, label: "Sealed for freshness" },
+    { icon: ShieldCheck, label: "Quality-checked" },
+  ],
+  cosmetics: [
+    { icon: Truck, label: "Free delivery over ₹499" },
+    { icon: Sparkles, label: "100% authentic" },
+    { icon: ShieldCheck, label: "Dermatologically safe" },
+  ],
+};
+
+function getTrustTags(categorySlug: string | null | undefined): TrustTag[] {
+  if (categorySlug && CATEGORY_TAGS[categorySlug]) return CATEGORY_TAGS[categorySlug];
+  return DEFAULT_TAGS;
+}
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ context, params }) => {
