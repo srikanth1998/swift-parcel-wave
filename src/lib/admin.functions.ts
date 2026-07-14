@@ -267,12 +267,12 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
     await Promise.all([
       supabaseAdmin
         .from("categories")
-        .select("id, slug, name, image_url, sort_order, created_at, updated_at")
+        .select("id, slug, name, image_url, sort_order, tags, created_at, updated_at")
         .order("sort_order", { ascending: true }),
       supabaseAdmin
         .from("products")
         .select(
-          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, created_at, updated_at, categories(slug, name)",
+          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, tags, created_at, updated_at, categories(slug, name)",
         )
         .order("name", { ascending: true }),
     ]);
