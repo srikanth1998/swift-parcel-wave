@@ -49,7 +49,7 @@ export const listProducts = createServerFn({ method: "GET" })
     let q = supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, brand, mrp_cents, categories(slug, name)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, brand, mrp_cents, tags, categories(slug, name, tags)",
       )
       .eq("is_active", true)
       .order("name", { ascending: true });
@@ -72,7 +72,7 @@ export const getProduct = createServerFn({ method: "GET" })
     const { data: row, error } = await supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, brand, mrp_cents, categories(slug, name)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, brand, mrp_cents, tags, categories(slug, name, tags)",
       )
       .eq("slug", data.slug)
       .eq("is_active", true)
