@@ -27,17 +27,6 @@ function AuthPage() {
   const [referralCode, setReferralCode] = useState(initialReferralCode);
   const [loading, setLoading] = useState(false);
 
-  const handleGoogle = async () => {
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin },
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
