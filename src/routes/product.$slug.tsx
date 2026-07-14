@@ -257,15 +257,14 @@ function ProductPage() {
             </div>
 
             <div className="mt-6 grid gap-2 rounded-xl bg-primary/5 p-3 text-xs sm:grid-cols-3">
-              <span className="inline-flex items-center gap-1.5 text-foreground">
-                <Truck className="h-3.5 w-3.5 text-primary" /> Free delivery over ₹499
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-foreground">
-                <Leaf className="h-3.5 w-3.5 text-primary" /> Farm-fresh from warehouse
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-foreground">
-                <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Quality-checked
-              </span>
+              {getTrustTags(product.categories?.slug).map(({ icon: Icon, label }) => (
+                <span
+                  key={label}
+                  className="inline-flex items-center gap-1.5 text-foreground"
+                >
+                  <Icon className="h-3.5 w-3.5 text-primary" /> {label}
+                </span>
+              ))}
             </div>
 
             {product.description && (
