@@ -229,7 +229,7 @@ export const placeOrder = createServerFn({ method: "POST" })
         const { data: redeemed, error: redeemErr } = await supabaseAdmin.rpc("redeem_coupon_atomic", {
           _coupon_id: couponId,
           _order_id: order.id,
-          _user_id: userId,
+          _user_id: userId as string,
           _discount_cents: discount,
         });
         if (redeemErr) {

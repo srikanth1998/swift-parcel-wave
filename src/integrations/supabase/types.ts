@@ -344,6 +344,7 @@ export type Database = {
           delivery_instructions: string | null
           discount: number
           id: string
+          idempotency_key: string | null
           order_number: string
           order_status: Database["public"]["Enums"]["order_status_enum"]
           packed_at: string | null
@@ -372,6 +373,7 @@ export type Database = {
           delivery_instructions?: string | null
           discount?: number
           id?: string
+          idempotency_key?: string | null
           order_number: string
           order_status?: Database["public"]["Enums"]["order_status_enum"]
           packed_at?: string | null
@@ -400,6 +402,7 @@ export type Database = {
           delivery_instructions?: string | null
           discount?: number
           id?: string
+          idempotency_key?: string | null
           order_number?: string
           order_status?: Database["public"]["Enums"]["order_status_enum"]
           packed_at?: string | null
@@ -641,6 +644,36 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_transactions: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          description: string | null
+          id: string
+          order_id: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          order_id?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       referral_earnings: {
@@ -656,6 +689,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_wallet_balance: { Args: { _user_id: string }; Returns: number }
       has_role: {
@@ -677,6 +711,15 @@ export type Database = {
       record_order_stock_decrement: {
         Args: { _order_id: string }
         Returns: undefined
+      }
+      redeem_coupon_atomic: {
+        Args: {
+          _coupon_id: string
+          _discount_cents: number
+          _order_id: string
+          _user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
