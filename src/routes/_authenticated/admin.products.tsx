@@ -318,6 +318,18 @@ function AdminProductsPage() {
                     }
                   />
                 </div>
+                <Field label="Tags (comma-separated, up to 6)">
+                  <Input
+                    value={productForm.tags}
+                    onChange={(event) =>
+                      setProductForm((current) => ({ ...current, tags: event.target.value }))
+                    }
+                    placeholder="e.g. Cold-chain delivered, Fresh from source"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Leave empty to inherit tags from the selected category.
+                  </p>
+                </Field>
                 <Button type="submit" disabled={productMutation.isPending}>
                   {productMutation.isPending ? "Saving..." : "Save product"}
                 </Button>
@@ -390,6 +402,18 @@ function AdminProductsPage() {
                     />
                   </Field>
                 </div>
+                <Field label="Default tags (comma-separated, up to 6)">
+                  <Input
+                    value={categoryForm.tags}
+                    onChange={(event) =>
+                      setCategoryForm((current) => ({ ...current, tags: event.target.value }))
+                    }
+                    placeholder="e.g. Cold-chain delivered, Quality-checked"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Applied to products in this category that have no tags of their own.
+                  </p>
+                </Field>
                 <Button type="submit" disabled={categoryMutation.isPending}>
                   {categoryMutation.isPending ? "Saving..." : "Save category"}
                 </Button>
@@ -492,6 +516,7 @@ function AdminProductsPage() {
                                   stockQty: product.stock_qty,
                                   isActive: product.is_active,
                                   isFeatured: product.is_featured,
+                                  tags: (product.tags ?? []).join(", "),
                                 })
                               }
                             >
@@ -534,6 +559,7 @@ function AdminProductsPage() {
                               slug: category.slug,
                               imageUrl: category.image_url ?? "",
                               sortOrder: category.sort_order,
+                              tags: (category.tags ?? []).join(", "),
                             })
                           }
                         >

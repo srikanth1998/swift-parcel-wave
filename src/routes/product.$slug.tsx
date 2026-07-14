@@ -70,7 +70,17 @@ const CATEGORY_TAGS: Record<string, TrustTag[]> = {
   ],
 };
 
-function getTrustTags(categorySlug: string | null | undefined): TrustTag[] {
+function getTrustTags(
+  productTags: string[] | null | undefined,
+  categoryTags: string[] | null | undefined,
+  categorySlug: string | null | undefined,
+): TrustTag[] {
+  if (productTags && productTags.length > 0) {
+    return productTags.map((label) => ({ icon: ShieldCheck, label }));
+  }
+  if (categoryTags && categoryTags.length > 0) {
+    return categoryTags.map((label) => ({ icon: ShieldCheck, label }));
+  }
   if (categorySlug && CATEGORY_TAGS[categorySlug]) return CATEGORY_TAGS[categorySlug];
   return DEFAULT_TAGS;
 }
@@ -257,7 +267,11 @@ function ProductPage() {
             </div>
 
             <div className="mt-6 grid gap-2 rounded-xl bg-primary/5 p-3 text-xs sm:grid-cols-3">
-              {getTrustTags(product.categories?.slug).map(({ icon: Icon, label }) => (
+              {getTrustTags(
+                product.tags,
+                product.categories?.tags,
+                product.categories?.slug,
+              ).map(({ icon: Icon, label }) => (
                 <span
                   key={label}
                   className="inline-flex items-center gap-1.5 text-foreground"
