@@ -22,6 +22,7 @@ export type Database = {
           name: string
           slug: string
           sort_order: number
+          tags: string[]
           updated_at: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           name: string
           slug: string
           sort_order?: number
+          tags?: string[]
           updated_at?: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           name?: string
           slug?: string
           sort_order?: number
+          tags?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -451,6 +454,7 @@ export type Database = {
           price_cents: number
           slug: string
           stock_qty: number
+          tags: string[]
           unit_label: string
           updated_at: string
         }
@@ -468,6 +472,7 @@ export type Database = {
           price_cents: number
           slug: string
           stock_qty?: number
+          tags?: string[]
           unit_label?: string
           updated_at?: string
         }
@@ -485,6 +490,7 @@ export type Database = {
           price_cents?: number
           slug?: string
           stock_qty?: number
+          tags?: string[]
           unit_label?: string
           updated_at?: string
         }
