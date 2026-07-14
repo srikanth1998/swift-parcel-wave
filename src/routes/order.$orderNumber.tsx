@@ -1,9 +1,14 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { z } from "zod";
 import { getOrderByNumber } from "@/lib/orders.functions";
 import { formatCents } from "@/lib/format";
 import { CUSTOMER_TIMELINE, STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 import { Check, CircleDot, Package, Truck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
   order_placed: "bg-gray-100 text-gray-700 border-gray-200",
@@ -18,12 +23,19 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   refunded: "bg-pink-100 text-pink-700 border-pink-200",
 };
 
+const orderSearchSchema = z.object({
+  email: z.string().email().optional(),
+});
+
 export const Route = createFileRoute("/order/$orderNumber")({
-  loader: async ({ context, params }) => {
+  validateSearch: orderSearchSchema,
+  loaderDeps: ({ search }) => ({ email: search.email }),
+  loader: async ({ context, params, deps }) => {
     const order = await context.queryClient.ensureQueryData({
-      queryKey: ["order", params.orderNumber],
-      queryFn: () => getOrderByNumber({ data: { orderNumber: params.orderNumber } }),
+      queryKey: ["order", params.orderNumber, deps.email],
+      queryFn: () => getOrderByNumber({ data: { orderNumber: params.orderNumber, email: deps.email } }),
     });
+    // Don't throw notFound if requiresEmailVerification - let component handle it
     if (!order) throw notFound();
   },
   head: ({ params }) => ({ meta: [{ title: `Order ${params.orderNumber} — FEABazaar` }] }),
@@ -45,11 +57,62 @@ export const Route = createFileRoute("/order/$orderNumber")({
 
 function OrderPage() {
   const { orderNumber } = Route.useParams();
-  const { data: order } = useQuery({
-    queryKey: ["order", orderNumber],
-    queryFn: () => getOrderByNumber({ data: { orderNumber } }),
+  const { email: searchEmail } = Route.useSearch();
+  const [emailInput, setEmailInput] = useState("");
+  const [verifyEmail, setVerifyEmail] = useState(searchEmail || "");
+
+  const { data: order, refetch } = useQuery({
+    queryKey: ["order", orderNumber, verifyEmail],
+    queryFn: () => getOrderByNumber({ data: { orderNumber, email: verifyEmail || undefined } }),
   });
-  if (!order) return null;
+
+  // Handle email verification requirement for guest orders
+  if (order && "requiresEmailVerification" in order && order.requiresEmailVerification) {
+    return (
+      <div className="bg-muted/30">
+        <div className="mx-auto max-w-md px-4 py-16">
+          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+            <h1 className="font-display text-xl font-bold">Verify your email</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              To view this guest order, please enter the email address used during checkout.
+            </p>
+            <form
+              className="mt-6 space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                setVerifyEmail(emailInput);
+                refetch();
+              }}
+            >
+              <div className="text-left">
+                <Label htmlFor="email">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  className="mt-1"
+                />
+              </div>
+              <Button type="submit" className="w-full">
+                View order
+              </Button>
+            </form>
+            <p className="mt-4 text-xs text-muted-foreground">
+              <Link to="/auth" className="text-primary hover:underline">
+                Sign in
+              </Link>{" "}
+              to view all your orders without verification.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order || "requiresEmailVerification" in order) return null;
 
   const status = order.order_status;
   const isCancelled = status === "cancelled" || status === "refunded";

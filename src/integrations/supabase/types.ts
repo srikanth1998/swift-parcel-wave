@@ -359,6 +359,7 @@ export type Database = {
           total: number
           updated_at: string
           wallet_credit_cents: number
+          idempotency_key: string | null
         }
         Insert: {
           confirmed_at?: string | null
@@ -387,6 +388,7 @@ export type Database = {
           total?: number
           updated_at?: string
           wallet_credit_cents?: number
+          idempotency_key?: string | null
         }
         Update: {
           confirmed_at?: string | null
@@ -415,6 +417,7 @@ export type Database = {
           total?: number
           updated_at?: string
           wallet_credit_cents?: number
+          idempotency_key?: string | null
         }
         Relationships: [
           {
@@ -435,6 +438,7 @@ export type Database = {
       }
       products: {
         Row: {
+          brand: string | null
           category_id: string | null
           created_at: string
           description: string | null
@@ -442,6 +446,7 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           is_featured: boolean
+          mrp_cents: number | null
           name: string
           price_cents: number
           slug: string
@@ -450,6 +455,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -457,6 +463,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
+          mrp_cents?: number | null
           name: string
           price_cents: number
           slug: string
@@ -465,6 +472,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand?: string | null
           category_id?: string | null
           created_at?: string
           description?: string | null
@@ -472,6 +480,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           is_featured?: boolean
+          mrp_cents?: number | null
           name?: string
           price_cents?: number
           slug?: string
@@ -635,6 +644,44 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          order_id: string | null
+          amount_cents: number
+          transaction_type: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          order_id?: string | null
+          amount_cents: number
+          transaction_type: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          order_id?: string | null
+          amount_cents?: number
+          transaction_type?: string
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       referral_earnings: {
@@ -671,6 +718,19 @@ export type Database = {
       record_order_stock_decrement: {
         Args: { _order_id: string }
         Returns: undefined
+      }
+      generate_order_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
+      redeem_coupon_atomic: {
+        Args: {
+          _coupon_id: string
+          _order_id: string
+          _user_id: string | null
+          _discount_cents: number
+        }
+        Returns: boolean
       }
     }
     Enums: {

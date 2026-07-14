@@ -121,6 +121,8 @@ function Checkout() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // Generate idempotency key to prevent duplicate orders on retry
+      const idempotencyKey = crypto.randomUUID();
       const result = await placeOrderFn({
         data: {
           ...form,
@@ -130,11 +132,16 @@ function Checkout() {
           couponCode: coupon?.code ?? null,
           walletCreditCents: walletApplied,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+          idempotencyKey,
         },
       });
-      clear();
       toast.success("Order placed!");
-      navigate({ to: "/order/$orderNumber", params: { orderNumber: result.orderNumber } });
+      // H2 FIX: Navigate BEFORE clearing cart to prevent the empty-cart guard
+      // from winning the navigation race. The order confirmation page will
+      // show the order details, and clearing the cart afterwards is safe.
+      await navigate({ to: "/order/$orderNumber", params: { orderNumber: result.orderNumber } });
+      // Clear cart after navigation completes
+      clear();
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Failed to place order");

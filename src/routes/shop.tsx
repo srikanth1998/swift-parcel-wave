@@ -125,8 +125,18 @@ function Shop() {
                 placeholder="Search in results…"
                 value={localSearch}
                 onChange={(e) => setLocalSearch(e.target.value)}
-                className="h-9 rounded-full bg-card pl-9 text-sm"
+                className="h-9 rounded-full bg-card pl-9 pr-8 text-sm"
               />
+              {localSearch && (
+                <button
+                  type="button"
+                  onClick={() => setLocalSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             <select
               value={sort}

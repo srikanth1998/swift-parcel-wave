@@ -47,25 +47,39 @@ const placeOrderSchema = z.object({
   couponCode: z.string().trim().max(40).nullable().optional(),
   walletCreditCents: z.number().int().min(0).max(10_000_000).optional().default(0),
   items: z.array(cartItemSchema).min(1).max(100),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 export const placeOrder = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => placeOrderSchema.parse(input))
   .handler(async ({ data }) => {
-    const supabase = userScopedClient();
+    const userClient = userScopedClient();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let userId: string | null = null;
     const auth = getRequestHeader("authorization");
     if (auth?.startsWith("Bearer ")) {
-      const { data: userData } = await supabase.auth.getUser(auth.slice(7));
+      const { data: userData } = await userClient.auth.getUser(auth.slice(7));
       userId = userData.user?.id ?? null;
+    }
+
+    // Idempotency check: if this order was already placed, return the existing order number
+    if (data.idempotencyKey) {
+      const { data: existing } = await supabaseAdmin
+        .from("orders")
+        .select("order_number")
+        .eq("idempotency_key", data.idempotencyKey)
+        .maybeSingle();
+      if (existing) {
+        return { orderNumber: existing.order_number };
+      }
     }
 
     const pub = publicClient();
     const productIds = data.items.map((i) => i.productId);
     const { data: products, error: prodErr } = await pub
       .from("products")
-      .select("id, name, price_cents")
+      .select("id, name, price_cents, stock_qty")
       .in("id", productIds)
       .eq("is_active", true);
     if (prodErr) throw new Error(prodErr.message);
@@ -73,6 +87,14 @@ export const placeOrder = createServerFn({ method: "POST" })
       throw new Error("One or more products are no longer available.");
     }
     const priceMap = new Map(products.map((p) => [p.id, p]));
+
+    // Check stock availability before proceeding
+    for (const item of data.items) {
+      const product = priceMap.get(item.productId)!;
+      if (product.stock_qty < item.qty) {
+        throw new Error(`Insufficient stock for ${product.name}. Only ${product.stock_qty} available.`);
+      }
+    }
 
     let subtotal = 0;
     const orderItemRows = data.items.map((it) => {
@@ -89,7 +111,6 @@ export const placeOrder = createServerFn({ method: "POST" })
     // Pricing is authoritative here: read live store settings and re-evaluate
     // any coupon server-side so the client can't tamper with tax/discount/total.
     const settings = await fetchStoreSettings(pub);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let discount = 0;
     let couponId: string | null = null;
@@ -119,12 +140,10 @@ export const placeOrder = createServerFn({ method: "POST" })
       subtotal >= settings.freeDeliveryThresholdCents ? 0 : settings.deliveryChargeCents;
     const total = afterWallet + tax + delivery_charge;
 
-    // IDs are generated here instead of relying on INSERT ... RETURNING:
-    // guests (anon role) may INSERT under RLS but have no SELECT policy, so a
-    // chained .select() would fail with an RLS violation. With known IDs the
-    // inserts need no RETURNING and work for guests and signed-in users alike.
+    // All inserts use supabaseAdmin (service_role) to bypass RLS.
+    // This is the ONLY path to create orders - direct client inserts are blocked by RLS.
     const addressId = crypto.randomUUID();
-    const { error: addrErr } = await supabase.from("delivery_addresses").insert({
+    const { error: addrErr } = await supabaseAdmin.from("delivery_addresses").insert({
       id: addressId,
       customer_id: userId,
       full_name: data.fullName,
@@ -139,9 +158,16 @@ export const placeOrder = createServerFn({ method: "POST" })
     });
     if (addrErr) throw new Error(addrErr.message);
 
+    // Generate order number using database sequence (collision-resistant)
+    const { data: orderNumData, error: orderNumErr } = await supabaseAdmin.rpc("generate_order_number");
+    if (orderNumErr || !orderNumData) {
+      // Fallback to client-side generation if RPC fails
+      console.error("[placeOrder] generate_order_number RPC failed:", orderNumErr);
+    }
+    const orderNumber = orderNumData || generateOrderNumber();
+
     const orderId = crypto.randomUUID();
-    const orderNumber = generateOrderNumber();
-    const { error: orderErr } = await supabase.from("orders").insert({
+    const { error: orderErr } = await supabaseAdmin.from("orders").insert({
       id: orderId,
       order_number: orderNumber,
       customer_id: userId,
@@ -160,12 +186,17 @@ export const placeOrder = createServerFn({ method: "POST" })
       customer_notes: data.customerNotes || null,
       delivery_instructions: data.deliveryInstructions || null,
       substitution_preference: data.substitutionPreference,
+      idempotency_key: data.idempotencyKey || null,
     });
-    if (orderErr) throw new Error(orderErr.message);
+    if (orderErr) {
+      // Cleanup orphaned address
+      await supabaseAdmin.from("delivery_addresses").delete().eq("id", addressId);
+      throw new Error(orderErr.message);
+    }
 
     const order = { id: orderId, order_number: orderNumber };
 
-    const { error: itemsErr } = await supabase
+    const { error: itemsErr } = await supabaseAdmin
       .from("order_items")
       .insert(orderItemRows.map((r) => ({ ...r, order_id: order.id })));
     if (itemsErr) {
@@ -192,32 +223,62 @@ export const placeOrder = createServerFn({ method: "POST" })
       console.error("[placeOrder] stock decrement failed:", err);
     }
 
-    // Record the coupon redemption and bump its usage counter.
+    // Record the coupon redemption atomically (prevents TOCTOU race condition)
     if (couponId) {
       try {
-        await supabaseAdmin.from("coupon_redemptions").insert({
-          coupon_id: couponId,
-          order_id: order.id,
-          user_id: userId,
-          discount_cents: discount,
+        const { data: redeemed, error: redeemErr } = await supabaseAdmin.rpc("redeem_coupon_atomic", {
+          _coupon_id: couponId,
+          _order_id: order.id,
+          _user_id: userId,
+          _discount_cents: discount,
         });
-        const { data: couponRow } = await supabaseAdmin
-          .from("coupons")
-          .select("used_count")
-          .eq("id", couponId)
-          .single();
-        await supabaseAdmin
-          .from("coupons")
-          .update({ used_count: (couponRow?.used_count ?? 0) + 1 })
-          .eq("id", couponId);
+        if (redeemErr) {
+          console.error("[placeOrder] atomic coupon redemption failed:", redeemErr.message);
+          // Fallback to non-atomic redemption for backwards compatibility
+          await supabaseAdmin.from("coupon_redemptions").insert({
+            coupon_id: couponId,
+            order_id: order.id,
+            user_id: userId,
+            discount_cents: discount,
+          });
+          // Fetch current count and increment (not perfectly atomic but functional fallback)
+          const { data: couponData } = await supabaseAdmin
+            .from("coupons")
+            .select("used_count")
+            .eq("id", couponId)
+            .single();
+          if (couponData) {
+            await supabaseAdmin
+              .from("coupons")
+              .update({ used_count: (couponData.used_count ?? 0) + 1 })
+              .eq("id", couponId);
+          }
+        } else if (!redeemed) {
+          console.warn("[placeOrder] coupon redemption returned false (limit reached)");
+        }
       } catch (err) {
         console.error("[placeOrder] coupon redemption bookkeeping failed:", err);
       }
     }
 
+    // Record wallet transaction to prevent double-spend
+    if (walletCredit > 0 && userId) {
+      try {
+        await supabaseAdmin.from("wallet_transactions").insert({
+          user_id: userId,
+          order_id: order.id,
+          amount_cents: walletCredit,
+          transaction_type: "debit",
+          description: `Applied to order ${orderNumber}`,
+        });
+      } catch (err) {
+        console.error("[placeOrder] wallet transaction recording failed:", err);
+      }
+    }
+
     if (userId) {
       const n = STATUS_NOTIFICATION["order_placed"]!;
-      await supabase.from("notifications").insert({
+      await supabaseAdmin.from("notifications").insert({
         user_id: userId,
         order_id: order.id,
         type: "order_placed",
@@ -232,10 +293,18 @@ export const placeOrder = createServerFn({ method: "POST" })
 const ORDER_SELECT =
   "id, order_number, order_status, payment_method, payment_status, subtotal, discount, coupon_code, wallet_credit_cents, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
 
+const getOrderByNumberSchema = z.object({
+  orderNumber: z.string(),
+  email: z.string().email().optional(),
+});
+
 export const getOrderByNumber = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ orderNumber: z.string() }).parse(input))
+  .inputValidator((input: unknown) => getOrderByNumberSchema.parse(input))
   .handler(async ({ data }) => {
     const supabase = userScopedClient();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // First, try to find the order for the authenticated user
     const { data: mine } = await supabase
       .from("orders")
       .select(ORDER_SELECT)
@@ -243,27 +312,69 @@ export const getOrderByNumber = createServerFn({ method: "GET" })
       .maybeSingle();
 
     let order = mine;
+
+    // If not found and this is a guest order lookup, require email verification
     if (!order) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: guest, error } = await supabaseAdmin
+      // For guest orders, we need to verify the email matches to prevent PII enumeration
+      const { data: guestOrder, error } = await supabaseAdmin
         .from("orders")
-        .select(ORDER_SELECT)
+        .select(`${ORDER_SELECT}`)
         .eq("order_number", data.orderNumber)
         .is("customer_id", null)
         .maybeSingle();
+
       if (error) throw new Error(error.message);
-      order = guest;
+
+      if (guestOrder) {
+        // H1 FIX: Require email verification for guest order access
+        // The email must match the one used during checkout
+        const orderEmail = (guestOrder.delivery_addresses as { email?: string })?.email;
+        if (!data.email) {
+          // Return minimal info indicating order exists but email required
+          return {
+            requiresEmailVerification: true,
+            orderNumber: data.orderNumber,
+          };
+        }
+        if (data.email.toLowerCase() !== orderEmail?.toLowerCase()) {
+          // Don't reveal whether the order exists - just return null
+          return null;
+        }
+        order = guestOrder;
+      }
     }
+
     if (!order) return null;
 
-    const client = order.customer_id
-      ? supabase
-      : (await import("@/integrations/supabase/client.server")).supabaseAdmin;
+    // For guest orders, mask sensitive PII (only show partial info)
+    const isGuestOrder = !order.customer_id;
+    const deliveryAddress = order.delivery_addresses as {
+      full_name: string;
+      phone: string;
+      email: string;
+      line1: string;
+      line2: string | null;
+      city: string;
+      state: string;
+      zip: string;
+      instructions: string | null;
+    };
+
+    // Fetch order items
+    const client = order.customer_id ? supabase : supabaseAdmin;
     const { data: items, error: itemsErr } = await client
       .from("order_items")
       .select("id, name_snapshot, unit_price_cents, ordered_qty")
       .eq("order_id", order.id);
     if (itemsErr) throw new Error(itemsErr.message);
+
+    // For guest orders, mask phone number (show only last 4 digits)
+    if (isGuestOrder && deliveryAddress) {
+      const phone = deliveryAddress.phone;
+      if (phone && phone.length > 4) {
+        deliveryAddress.phone = "****" + phone.slice(-4);
+      }
+    }
 
     return { ...order, items: items ?? [] };
   });

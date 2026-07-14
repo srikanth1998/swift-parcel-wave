@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
-import { formatCents, deriveOffer } from "@/lib/format";
+import { formatCents } from "@/lib/format";
 import { toast } from "sonner";
 import { Heart, Plus, ImageOff } from "lucide-react";
 import { QuantityStepper } from "./quantity-stepper";
@@ -13,18 +13,25 @@ export type ProductCardData = {
   price_cents: number;
   unit_label: string;
   image_url: string | null;
+  brand?: string | null;
+  mrp_cents?: number | null;
 };
 
 export function ProductCard({ product }: { product: ProductCardData }) {
   const { add, items, setQty } = useCart();
-  const offer = deriveOffer(product.slug, product.price_cents);
   const inCart = items.find((i) => i.productId === product.id);
+  
+  // Calculate discount from real mrp_cents field
+  const hasDiscount = product.mrp_cents && product.mrp_cents > product.price_cents;
+  const discountPct = hasDiscount
+    ? Math.round(((product.mrp_cents! - product.price_cents) / product.mrp_cents!) * 100)
+    : 0;
 
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
-      {offer && (
+      {hasDiscount && discountPct > 0 && (
         <span className="absolute left-2 top-2 z-10 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
-          {offer.discountPct}% OFF
+          {discountPct}% OFF
         </span>
       )}
       <button
@@ -60,7 +67,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
 
       <div className="flex flex-1 flex-col gap-1.5 p-3">
         <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          FEABazaar
+          {product.brand || "FEABazaar"}
         </div>
         <Link
           to="/product/$slug"
@@ -76,9 +83,9 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             <div className="font-display text-base font-bold leading-tight text-foreground">
               {formatCents(product.price_cents)}
             </div>
-            {offer && (
+            {hasDiscount && (
               <div className="text-[11px] text-muted-foreground">
-                MRP <span className="line-through">{formatCents(offer.mrpCents)}</span>
+                MRP <span className="line-through">{formatCents(product.mrp_cents!)}</span>
               </div>
             )}
           </div>

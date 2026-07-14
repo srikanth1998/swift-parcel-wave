@@ -136,6 +136,31 @@ function AuthPage() {
           </Button>
         </form>
 
+        {mode === "sign_in" && (
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+              onClick={async () => {
+                if (!email) {
+                  toast.error("Enter your email address first");
+                  return;
+                }
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/auth`,
+                  });
+                  if (error) throw error;
+                  toast.success("Password reset email sent. Check your inbox.");
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Failed to send reset email");
+                }
+              }}
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
         <div className="mt-4 text-center text-sm text-muted-foreground">
           {mode === "sign_in" ? "New here?" : "Already have an account?"}{" "}
           <button

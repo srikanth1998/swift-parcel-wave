@@ -34,6 +34,8 @@ type ProductForm = {
   description: string;
   categoryId: string;
   priceRupees: number;
+  mrpRupees: number;
+  brand: string;
   unitLabel: string;
   imageUrl: string;
   stockQty: number;
@@ -55,6 +57,8 @@ const emptyProduct: ProductForm = {
   description: "",
   categoryId: "__none",
   priceRupees: 0,
+  mrpRupees: 0,
+  brand: "",
   unitLabel: "each",
   imageUrl: "",
   stockQty: 0,
@@ -218,8 +222,28 @@ function AdminProductsPage() {
                     />
                   </Field>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Brand">
+                    <Input
+                      value={productForm.brand}
+                      onChange={(event) =>
+                        setProductForm((current) => ({ ...current, brand: event.target.value }))
+                      }
+                      placeholder="Leave empty for store default"
+                    />
+                  </Field>
+                  <Field label="Unit">
+                    <Input
+                      value={productForm.unitLabel}
+                      onChange={(event) =>
+                        setProductForm((current) => ({ ...current, unitLabel: event.target.value }))
+                      }
+                      required
+                    />
+                  </Field>
+                </div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <Field label="Price">
+                  <Field label="Selling Price (₹)">
                     <Input
                       type="number"
                       min={0}
@@ -234,13 +258,19 @@ function AdminProductsPage() {
                       required
                     />
                   </Field>
-                  <Field label="Unit">
+                  <Field label="MRP (₹)">
                     <Input
-                      value={productForm.unitLabel}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={productForm.mrpRupees}
                       onChange={(event) =>
-                        setProductForm((current) => ({ ...current, unitLabel: event.target.value }))
+                        setProductForm((current) => ({
+                          ...current,
+                          mrpRupees: Number(event.target.value),
+                        }))
                       }
-                      required
+                      placeholder="For discount badge"
                     />
                   </Field>
                   <Field label="Stock">
@@ -441,6 +471,8 @@ function AdminProductsPage() {
                                   description: product.description ?? "",
                                   categoryId: product.category_id ?? "__none",
                                   priceRupees: product.price_rupees,
+                                  mrpRupees: product.mrp_rupees ?? 0,
+                                  brand: product.brand ?? "",
                                   unitLabel: product.unit_label,
                                   imageUrl: product.image_url ?? "",
                                   stockQty: product.stock_qty,

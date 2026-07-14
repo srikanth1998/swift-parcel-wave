@@ -32,25 +32,37 @@ export const listProducts = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     const supabase = publicClient();
+    
+    // If filtering by category, first get the category ID for efficient DB-side filtering
+    let categoryId: string | null = null;
+    if (data.categorySlug) {
+      const { data: cat } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("slug", data.categorySlug)
+        .maybeSingle();
+      categoryId = cat?.id ?? null;
+      // If category not found, return empty array
+      if (!categoryId) return [];
+    }
+    
     let q = supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, categories(slug, name)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, brand, mrp_cents, categories(slug, name)",
       )
       .eq("is_active", true)
       .order("name", { ascending: true });
 
     if (data.featuredOnly) q = q.eq("is_featured", true);
     if (data.search) q = q.ilike("name", `%${data.search}%`);
+    if (categoryId) q = q.eq("category_id", categoryId);
     if (data.limit) q = q.limit(data.limit);
 
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
-    const filtered = data.categorySlug
-      ? (rows ?? []).filter((r) => r.categories?.slug === data.categorySlug)
-      : (rows ?? []);
-    return filtered;
+    return rows ?? [];
   });
 
 export const getProduct = createServerFn({ method: "GET" })
@@ -60,7 +72,7 @@ export const getProduct = createServerFn({ method: "GET" })
     const { data: row, error } = await supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, categories(slug, name)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, brand, mrp_cents, categories(slug, name)",
       )
       .eq("slug", data.slug)
       .eq("is_active", true)

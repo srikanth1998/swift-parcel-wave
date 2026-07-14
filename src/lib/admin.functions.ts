@@ -272,7 +272,7 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
       supabaseAdmin
         .from("products")
         .select(
-          "id, slug, name, description, category_id, price_cents, unit_label, image_url, stock_qty, is_active, is_featured, created_at, updated_at, categories(slug, name)",
+          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, created_at, updated_at, categories(slug, name)",
         )
         .order("name", { ascending: true }),
     ]);
@@ -285,6 +285,8 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
     products: (products ?? []).map((product) => ({
       ...product,
       price_rupees: rupeesFromCents(product.price_cents),
+      mrp_rupees: product.mrp_cents ? rupeesFromCents(product.mrp_cents) : 0,
+      brand: product.brand ?? "",
     })),
   };
 });
@@ -296,6 +298,8 @@ const productInputSchema = z.object({
   description: z.string().trim().max(1000).nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   priceRupees: z.number().min(0).max(1_000_000),
+  mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
+  brand: z.string().trim().max(100).optional().default(""),
   unitLabel: z.string().trim().min(1).max(40),
   imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
   stockQty: z.number().int().min(0).max(1_000_000),
@@ -309,12 +313,17 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
     await requireRole(["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const mrpCents = data.mrpRupees ? centsFromRupees(data.mrpRupees) : null;
+    const priceCents = centsFromRupees(data.priceRupees);
+    
     const row = {
       name: data.name,
       slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
       description: data.description || null,
       category_id: data.categoryId || null,
-      price_cents: centsFromRupees(data.priceRupees),
+      price_cents: priceCents,
+      mrp_cents: mrpCents && mrpCents > priceCents ? mrpCents : null,
+      brand: data.brand || null,
       unit_label: data.unitLabel,
       image_url: data.imageUrl || null,
       stock_qty: data.stockQty,

@@ -48,15 +48,16 @@ function AdminDashboard() {
       ) : (
         <div className="space-y-6">
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <Metric icon={ShoppingBag} label="Orders 30d" value={data.stats.orders30d} />
-            <Metric icon={PackageCheck} label="Open orders" value={data.stats.pendingOrders} />
+            <Metric icon={ShoppingBag} label="Orders 30d" value={data.stats.orders30d} href="/admin/orders" />
+            <Metric icon={PackageCheck} label="Open orders" value={data.stats.pendingOrders} href="/admin/orders" />
             <Metric
               icon={IndianRupee}
               label="Revenue 30d"
               value={formatCents(data.stats.revenue30dCents)}
+              href="/admin/orders"
             />
-            <Metric icon={AlertTriangle} label="Low stock" value={data.stats.lowStockProducts} />
-            <Metric icon={Boxes} label="Inactive SKUs" value={data.stats.inactiveProducts} />
+            <Metric icon={AlertTriangle} label="Low stock" value={data.stats.lowStockProducts} href="/admin/inventory" />
+            <Metric icon={Boxes} label="Inactive SKUs" value={data.stats.inactiveProducts} href="/admin/products" />
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -149,18 +150,37 @@ function Metric({
   icon: Icon,
   label,
   value,
+  href,
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
   value: string | number;
+  href?: string;
 }) {
-  return (
-    <div className="rounded-md border border-border bg-card p-4 shadow-sm">
+  const content = (
+    <>
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">{label}</div>
         <Icon className="h-4 w-4 text-primary" />
       </div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        to={href}
+        className="block rounded-md border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/5"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-border bg-card p-4 shadow-sm">
+      {content}
     </div>
   );
 }

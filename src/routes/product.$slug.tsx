@@ -4,7 +4,7 @@ import { useState } from "react";
 import { getProduct, listProducts } from "@/lib/products.functions";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
-import { formatCents, deriveOffer } from "@/lib/format";
+import { formatCents } from "@/lib/format";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { ProductCard } from "@/components/product-card";
 import { ChevronRight, Heart, Leaf, ShieldCheck, Truck, ImageOff } from "lucide-react";
@@ -70,9 +70,12 @@ function ProductPage() {
 
   if (!product) return null;
 
-  const offer = deriveOffer(product.slug, product.price_cents);
+  // Calculate discount from real mrp_cents field
+  const hasDiscount = product.mrp_cents && product.mrp_cents > product.price_cents;
+  const discountPct = hasDiscount
+    ? Math.round(((product.mrp_cents! - product.price_cents) / product.mrp_cents!) * 100)
+    : 0;
   const related = relatedRaw.filter((p) => p.id !== product.id).slice(0, 6);
-  const thumbs = product.image_url ? [product.image_url, product.image_url, product.image_url] : [];
 
   return (
     <div className="bg-muted/30">
@@ -107,9 +110,9 @@ function ProductPage() {
           {/* Gallery */}
           <div>
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
-              {offer && (
+              {hasDiscount && discountPct > 0 && (
                 <span className="absolute left-3 top-3 z-10 rounded-md bg-accent px-2 py-1 text-xs font-bold text-accent-foreground shadow">
-                  {offer.discountPct}% OFF
+                  {discountPct}% OFF
                 </span>
               )}
               {product.image_url ? (
@@ -124,25 +127,12 @@ function ProductPage() {
                 </div>
               )}
             </div>
-            {thumbs.length > 0 && (
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {thumbs.map((t, i) => (
-                  <button
-                    key={i}
-                    className="aspect-square overflow-hidden rounded-lg border border-border bg-muted transition-colors hover:border-primary/40"
-                    aria-label={`Thumbnail ${i + 1}`}
-                  >
-                    <img src={t} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Info */}
           <div className="flex flex-col">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              FEABazaar {product.categories && <>· {product.categories.name}</>}
+              {product.brand || "FEABazaar"} {product.categories && <>· {product.categories.name}</>}
             </div>
             <h1 className="mt-1 font-display text-2xl font-bold text-foreground md:text-3xl">
               {product.name}
@@ -153,13 +143,13 @@ function ProductPage() {
               <span className="font-display text-3xl font-bold text-foreground">
                 {formatCents(product.price_cents)}
               </span>
-              {offer && (
+              {hasDiscount && (
                 <>
                   <span className="text-base text-muted-foreground line-through">
-                    {formatCents(offer.mrpCents)}
+                    {formatCents(product.mrp_cents!)}
                   </span>
                   <span className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
-                    Save {offer.discountPct}%
+                    Save {discountPct}%
                   </span>
                 </>
               )}
