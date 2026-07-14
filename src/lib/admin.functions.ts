@@ -305,6 +305,7 @@ const productInputSchema = z.object({
   stockQty: z.number().int().min(0).max(1_000_000),
   isActive: z.boolean(),
   isFeatured: z.boolean(),
+  tags: z.array(z.string().trim().min(1).max(60)).max(6).optional().default([]),
 });
 
 export const upsertAdminProduct = createServerFn({ method: "POST" })
@@ -329,6 +330,7 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
       stock_qty: data.stockQty,
       is_active: data.isActive,
       is_featured: data.isFeatured,
+      tags: data.tags ?? [],
     };
 
     const result = data.id
@@ -432,6 +434,7 @@ const categoryInputSchema = z.object({
   slug: z.string().trim().max(120).optional().default(""),
   imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
   sortOrder: z.number().int().min(0).max(10_000),
+  tags: z.array(z.string().trim().min(1).max(60)).max(6).optional().default([]),
 });
 
 export const upsertAdminCategory = createServerFn({ method: "POST" })
@@ -445,6 +448,7 @@ export const upsertAdminCategory = createServerFn({ method: "POST" })
       slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
       image_url: data.imageUrl || null,
       sort_order: data.sortOrder,
+      tags: data.tags ?? [],
     };
 
     const result = data.id
