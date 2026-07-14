@@ -41,6 +41,7 @@ type ProductForm = {
   stockQty: number;
   isActive: boolean;
   isFeatured: boolean;
+  tags: string;
 };
 
 type CategoryForm = {
@@ -49,6 +50,7 @@ type CategoryForm = {
   slug: string;
   imageUrl: string;
   sortOrder: number;
+  tags: string;
 };
 
 const emptyProduct: ProductForm = {
@@ -64,6 +66,7 @@ const emptyProduct: ProductForm = {
   stockQty: 0,
   isActive: true,
   isFeatured: false,
+  tags: "",
 };
 
 const emptyCategory: CategoryForm = {
@@ -71,7 +74,16 @@ const emptyCategory: CategoryForm = {
   slug: "",
   imageUrl: "",
   sortOrder: 0,
+  tags: "",
 };
+
+function parseTags(input: string): string[] {
+  return input
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({ meta: [{ title: "Catalog - FEABazaar" }] }),
@@ -97,6 +109,7 @@ function AdminProductsPage() {
           categoryId: input.categoryId === "__none" ? null : input.categoryId,
           description: input.description || null,
           imageUrl: input.imageUrl || null,
+          tags: parseTags(input.tags),
         },
       }),
     onSuccess: async () => {
@@ -113,6 +126,7 @@ function AdminProductsPage() {
         data: {
           ...input,
           imageUrl: input.imageUrl || null,
+          tags: parseTags(input.tags),
         },
       }),
     onSuccess: async () => {
