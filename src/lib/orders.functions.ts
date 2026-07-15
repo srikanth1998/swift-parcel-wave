@@ -8,6 +8,7 @@ import { STATUS_NOTIFICATION } from "./order-status";
 import { fetchStoreSettings } from "./store-settings";
 import { evaluateCoupon } from "./coupon-eval";
 import { computeWalletBalance } from "./wallet.functions";
+import { resolveDistributorForPincode } from "./distributor-resolve";
 
 function publicClient() {
   return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
@@ -96,6 +97,39 @@ export const placeOrder = createServerFn({ method: "POST" })
       }
     }
 
+    // Resolve the distributor that services this address. Every order must
+    // snapshot a distributor — checkout is rejected before anything is
+    // written if no distributor covers the pincode. Uses supabaseAdmin since
+    // service_areas has no client-readable RLS policy (resolution is
+    // server-only).
+    const distributor = await resolveDistributorForPincode(supabaseAdmin, data.zip);
+    if (!distributor) {
+      throw new Error(
+        `Sorry, we don't deliver to pincode ${data.zip} yet. Please try a different address.`,
+      );
+    }
+
+    // Check distributor-level stock (the real fulfillment-level figure) on
+    // top of the global product check above. Also uses supabaseAdmin: a
+    // customer's public/anon client has no RLS read access to another
+    // distributor's inventory.
+    const { data: distributorStock, error: distStockErr } = await supabaseAdmin
+      .from("distributor_inventory")
+      .select("product_id, stock_qty")
+      .eq("distributor_id", distributor.id)
+      .in("product_id", productIds);
+    if (distStockErr) throw new Error(distStockErr.message);
+    const distStockMap = new Map((distributorStock ?? []).map((r) => [r.product_id, r.stock_qty]));
+    for (const item of data.items) {
+      const product = priceMap.get(item.productId)!;
+      const available = distStockMap.get(item.productId) ?? 0;
+      if (available < item.qty) {
+        throw new Error(
+          `Insufficient stock for ${product.name} in your area. Only ${available} available.`,
+        );
+      }
+    }
+
     let subtotal = 0;
     const orderItemRows = data.items.map((it) => {
       const p = priceMap.get(it.productId)!;
@@ -172,6 +206,7 @@ export const placeOrder = createServerFn({ method: "POST" })
       order_number: orderNumber,
       customer_id: userId,
       delivery_address_id: addressId,
+      distributor_id: distributor.id,
       order_status: "order_placed",
       payment_method: "cod",
       payment_status: "pending",

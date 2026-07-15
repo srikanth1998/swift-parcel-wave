@@ -197,11 +197,81 @@ export type Database = {
         }
         Relationships: []
       }
+      distributor_inventory: {
+        Row: {
+          distributor_id: string
+          id: string
+          product_id: string
+          stock_qty: number
+          updated_at: string
+        }
+        Insert: {
+          distributor_id: string
+          id?: string
+          product_id: string
+          stock_qty?: number
+          updated_at?: string
+        }
+        Update: {
+          distributor_id?: string
+          id?: string
+          product_id?: string
+          stock_qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_inventory_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distributors: {
+        Row: {
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_adjustments: {
         Row: {
           created_at: string
           created_by: string | null
           delta: number
+          distributor_id: string | null
           id: string
           new_qty: number
           note: string | null
@@ -213,6 +283,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delta: number
+          distributor_id?: string | null
           id?: string
           new_qty: number
           note?: string | null
@@ -224,6 +295,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delta?: number
+          distributor_id?: string | null
           id?: string
           new_qty?: number
           note?: string | null
@@ -232,6 +304,13 @@ export type Database = {
           reason?: Database["public"]["Enums"]["inventory_reason_enum"]
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventory_adjustments_product_id_fkey"
             columns: ["product_id"]
@@ -355,6 +434,7 @@ export type Database = {
           delivery_charge: number
           delivery_instructions: string | null
           discount: number
+          distributor_id: string
           id: string
           idempotency_key: string | null
           order_number: string
@@ -384,6 +464,7 @@ export type Database = {
           delivery_charge?: number
           delivery_instructions?: string | null
           discount?: number
+          distributor_id: string
           id?: string
           idempotency_key?: string | null
           order_number: string
@@ -413,6 +494,7 @@ export type Database = {
           delivery_charge?: number
           delivery_instructions?: string | null
           discount?: number
+          distributor_id?: string
           id?: string
           idempotency_key?: string | null
           order_number?: string
@@ -444,6 +526,13 @@ export type Database = {
             columns: ["delivery_address_id"]
             isOneToOne: false
             referencedRelation: "delivery_addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
             referencedColumns: ["id"]
           },
         ]
@@ -602,6 +691,35 @@ export type Database = {
           },
         ]
       }
+      service_areas: {
+        Row: {
+          created_at: string
+          distributor_id: string
+          id: string
+          pincode: string
+        }
+        Insert: {
+          created_at?: string
+          distributor_id: string
+          id?: string
+          pincode: string
+        }
+        Update: {
+          created_at?: string
+          distributor_id?: string
+          id?: string
+          pincode?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_areas_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_settings: {
         Row: {
           delivery_charge_cents: number
@@ -641,23 +759,34 @@ export type Database = {
       user_roles: {
         Row: {
           created_at: string
+          distributor_id: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
           created_at?: string
+          distributor_id?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
           created_at?: string
+          distributor_id?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
@@ -706,6 +835,7 @@ export type Database = {
     Functions: {
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      get_my_distributor_id: { Args: never; Returns: string }
       get_wallet_balance: { Args: { _user_id: string }; Returns: number }
       has_role: {
         Args: {
@@ -738,7 +868,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "customer" | "staff" | "admin"
+      app_role: "customer" | "staff" | "admin" | "distributor"
       coupon_type_enum: "percentage" | "fixed"
       inventory_reason_enum:
         | "restock"
@@ -891,7 +1021,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["customer", "staff", "admin"],
+      app_role: ["customer", "staff", "admin", "distributor"],
       coupon_type_enum: ["percentage", "fixed"],
       inventory_reason_enum: [
         "restock",

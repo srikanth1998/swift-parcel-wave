@@ -14,6 +14,7 @@ import { Route as ShopRouteImport } from './routes/shop'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DistributorRouteRouteImport } from './routes/_distributor/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
@@ -21,13 +22,17 @@ import { Route as OrderOrderNumberRouteImport } from './routes/order.$orderNumbe
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
+import { Route as DistributorDistributorIndexRouteImport } from './routes/_distributor/distributor.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as DistributorDistributorOrdersRouteImport } from './routes/_distributor/distributor.orders'
+import { Route as DistributorDistributorInventoryRouteImport } from './routes/_distributor/distributor.inventory'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
 import { Route as AuthenticatedAdminReferralsRouteImport } from './routes/_authenticated/admin.referrals'
 import { Route as AuthenticatedAdminProductsBoardRouteImport } from './routes/_authenticated/admin.products-board'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminOrdersRouteImport } from './routes/_authenticated/admin.orders'
 import { Route as AuthenticatedAdminInventoryRouteImport } from './routes/_authenticated/admin.inventory'
+import { Route as AuthenticatedAdminDistributorsRouteImport } from './routes/_authenticated/admin.distributors'
 import { Route as AuthenticatedAdminCustomersRouteImport } from './routes/_authenticated/admin.customers'
 import { Route as AuthenticatedAdminCouponsRouteImport } from './routes/_authenticated/admin.coupons'
 
@@ -54,6 +59,10 @@ const CartRoute = CartRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DistributorRouteRoute = DistributorRouteRouteImport.update({
+  id: '/_distributor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -90,11 +99,29 @@ const AuthenticatedOrdersRoute = AuthenticatedOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DistributorDistributorIndexRoute =
+  DistributorDistributorIndexRouteImport.update({
+    id: '/distributor/',
+    path: '/distributor/',
+    getParentRoute: () => DistributorRouteRoute,
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DistributorDistributorOrdersRoute =
+  DistributorDistributorOrdersRouteImport.update({
+    id: '/distributor/orders',
+    path: '/distributor/orders',
+    getParentRoute: () => DistributorRouteRoute,
+  } as any)
+const DistributorDistributorInventoryRoute =
+  DistributorDistributorInventoryRouteImport.update({
+    id: '/distributor/inventory',
+    path: '/distributor/inventory',
+    getParentRoute: () => DistributorRouteRoute,
+  } as any)
 const AuthenticatedAdminSettingsRoute =
   AuthenticatedAdminSettingsRouteImport.update({
     id: '/admin/settings',
@@ -131,6 +158,12 @@ const AuthenticatedAdminInventoryRoute =
     path: '/admin/inventory',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminDistributorsRoute =
+  AuthenticatedAdminDistributorsRouteImport.update({
+    id: '/admin/distributors',
+    path: '/admin/distributors',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminCustomersRoute =
   AuthenticatedAdminCustomersRouteImport.update({
     id: '/admin/customers',
@@ -158,13 +191,17 @@ export interface FileRoutesByFullPath {
   '/product/$slug': typeof ProductSlugRoute
   '/admin/coupons': typeof AuthenticatedAdminCouponsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/distributors': typeof AuthenticatedAdminDistributorsRoute
   '/admin/inventory': typeof AuthenticatedAdminInventoryRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/products-board': typeof AuthenticatedAdminProductsBoardRoute
   '/admin/referrals': typeof AuthenticatedAdminReferralsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/distributor/inventory': typeof DistributorDistributorInventoryRoute
+  '/distributor/orders': typeof DistributorDistributorOrdersRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/distributor/': typeof DistributorDistributorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -180,18 +217,23 @@ export interface FileRoutesByTo {
   '/product/$slug': typeof ProductSlugRoute
   '/admin/coupons': typeof AuthenticatedAdminCouponsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/admin/distributors': typeof AuthenticatedAdminDistributorsRoute
   '/admin/inventory': typeof AuthenticatedAdminInventoryRoute
   '/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/products-board': typeof AuthenticatedAdminProductsBoardRoute
   '/admin/referrals': typeof AuthenticatedAdminReferralsRoute
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/distributor/inventory': typeof DistributorDistributorInventoryRoute
+  '/distributor/orders': typeof DistributorDistributorOrdersRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/distributor': typeof DistributorDistributorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/_distributor': typeof DistributorRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
@@ -204,13 +246,17 @@ export interface FileRoutesById {
   '/product/$slug': typeof ProductSlugRoute
   '/_authenticated/admin/coupons': typeof AuthenticatedAdminCouponsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRoute
+  '/_authenticated/admin/distributors': typeof AuthenticatedAdminDistributorsRoute
   '/_authenticated/admin/inventory': typeof AuthenticatedAdminInventoryRoute
   '/_authenticated/admin/orders': typeof AuthenticatedAdminOrdersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/products-board': typeof AuthenticatedAdminProductsBoardRoute
   '/_authenticated/admin/referrals': typeof AuthenticatedAdminReferralsRoute
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
+  '/_distributor/distributor/inventory': typeof DistributorDistributorInventoryRoute
+  '/_distributor/distributor/orders': typeof DistributorDistributorOrdersRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_distributor/distributor/': typeof DistributorDistributorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -228,13 +274,17 @@ export interface FileRouteTypes {
     | '/product/$slug'
     | '/admin/coupons'
     | '/admin/customers'
+    | '/admin/distributors'
     | '/admin/inventory'
     | '/admin/orders'
     | '/admin/products'
     | '/admin/products-board'
     | '/admin/referrals'
     | '/admin/settings'
+    | '/distributor/inventory'
+    | '/distributor/orders'
     | '/admin/'
+    | '/distributor/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -250,17 +300,22 @@ export interface FileRouteTypes {
     | '/product/$slug'
     | '/admin/coupons'
     | '/admin/customers'
+    | '/admin/distributors'
     | '/admin/inventory'
     | '/admin/orders'
     | '/admin/products'
     | '/admin/products-board'
     | '/admin/referrals'
     | '/admin/settings'
+    | '/distributor/inventory'
+    | '/distributor/orders'
     | '/admin'
+    | '/distributor'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_distributor'
     | '/auth'
     | '/cart'
     | '/checkout'
@@ -273,18 +328,23 @@ export interface FileRouteTypes {
     | '/product/$slug'
     | '/_authenticated/admin/coupons'
     | '/_authenticated/admin/customers'
+    | '/_authenticated/admin/distributors'
     | '/_authenticated/admin/inventory'
     | '/_authenticated/admin/orders'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/products-board'
     | '/_authenticated/admin/referrals'
     | '/_authenticated/admin/settings'
+    | '/_distributor/distributor/inventory'
+    | '/_distributor/distributor/orders'
     | '/_authenticated/admin/'
+    | '/_distributor/distributor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  DistributorRouteRoute: typeof DistributorRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
@@ -329,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_distributor': {
+      id: '/_distributor'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof DistributorRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -380,12 +447,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrdersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_distributor/distributor/': {
+      id: '/_distributor/distributor/'
+      path: '/distributor'
+      fullPath: '/distributor/'
+      preLoaderRoute: typeof DistributorDistributorIndexRouteImport
+      parentRoute: typeof DistributorRouteRoute
+    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_distributor/distributor/orders': {
+      id: '/_distributor/distributor/orders'
+      path: '/distributor/orders'
+      fullPath: '/distributor/orders'
+      preLoaderRoute: typeof DistributorDistributorOrdersRouteImport
+      parentRoute: typeof DistributorRouteRoute
+    }
+    '/_distributor/distributor/inventory': {
+      id: '/_distributor/distributor/inventory'
+      path: '/distributor/inventory'
+      fullPath: '/distributor/inventory'
+      preLoaderRoute: typeof DistributorDistributorInventoryRouteImport
+      parentRoute: typeof DistributorRouteRoute
     }
     '/_authenticated/admin/settings': {
       id: '/_authenticated/admin/settings'
@@ -429,6 +517,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminInventoryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/distributors': {
+      id: '/_authenticated/admin/distributors'
+      path: '/admin/distributors'
+      fullPath: '/admin/distributors'
+      preLoaderRoute: typeof AuthenticatedAdminDistributorsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/customers': {
       id: '/_authenticated/admin/customers'
       path: '/admin/customers'
@@ -452,6 +547,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedAdminCouponsRoute: typeof AuthenticatedAdminCouponsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRoute
+  AuthenticatedAdminDistributorsRoute: typeof AuthenticatedAdminDistributorsRoute
   AuthenticatedAdminInventoryRoute: typeof AuthenticatedAdminInventoryRoute
   AuthenticatedAdminOrdersRoute: typeof AuthenticatedAdminOrdersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
@@ -467,6 +563,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedAdminCouponsRoute: AuthenticatedAdminCouponsRoute,
   AuthenticatedAdminCustomersRoute: AuthenticatedAdminCustomersRoute,
+  AuthenticatedAdminDistributorsRoute: AuthenticatedAdminDistributorsRoute,
   AuthenticatedAdminInventoryRoute: AuthenticatedAdminInventoryRoute,
   AuthenticatedAdminOrdersRoute: AuthenticatedAdminOrdersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
@@ -479,9 +576,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface DistributorRouteRouteChildren {
+  DistributorDistributorInventoryRoute: typeof DistributorDistributorInventoryRoute
+  DistributorDistributorOrdersRoute: typeof DistributorDistributorOrdersRoute
+  DistributorDistributorIndexRoute: typeof DistributorDistributorIndexRoute
+}
+
+const DistributorRouteRouteChildren: DistributorRouteRouteChildren = {
+  DistributorDistributorInventoryRoute: DistributorDistributorInventoryRoute,
+  DistributorDistributorOrdersRoute: DistributorDistributorOrdersRoute,
+  DistributorDistributorIndexRoute: DistributorDistributorIndexRoute,
+}
+
+const DistributorRouteRouteWithChildren =
+  DistributorRouteRoute._addFileChildren(DistributorRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  DistributorRouteRoute: DistributorRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,

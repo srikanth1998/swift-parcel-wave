@@ -1,32 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Boxes,
-  LayoutDashboard,
-  Network,
-  PackageCheck,
-  Settings,
-  Table2,
-  TicketPercent,
-  Truck,
-  UsersRound,
-  Warehouse,
-} from "lucide-react";
+import { LayoutDashboard, PackageCheck, Warehouse } from "lucide-react";
 import type { ReactNode } from "react";
 
 const items = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/admin/orders", label: "Orders", icon: PackageCheck },
-  { to: "/admin/products", label: "Catalog", icon: Boxes },
-  { to: "/admin/products-board", label: "Products Board", icon: Table2 },
-  { to: "/admin/inventory", label: "Inventory", icon: Warehouse },
-  { to: "/admin/distributors", label: "Distributors", icon: Truck },
-  { to: "/admin/coupons", label: "Coupons", icon: TicketPercent },
-  { to: "/admin/customers", label: "Customers", icon: UsersRound },
-  { to: "/admin/referrals", label: "Referrals", icon: Network },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/distributor", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/distributor/orders", label: "Orders", icon: PackageCheck },
+  { to: "/distributor/inventory", label: "Inventory", icon: Warehouse },
 ] as const;
 
-export function AdminNav() {
+export function DistributorNav() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   return (
@@ -34,7 +16,7 @@ export function AdminNav() {
       <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 xl:sticky xl:top-28 xl:block xl:w-56 xl:space-y-1 xl:px-3">
         {items.map((item) => {
           const active =
-            item.to === "/admin" ? pathname === "/admin" : pathname.startsWith(item.to);
+            item.to === "/distributor" ? pathname === "/distributor" : pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
             <Link
@@ -56,7 +38,7 @@ export function AdminNav() {
   );
 }
 
-export function AdminPageFrame({
+export function DistributorPageFrame({
   title,
   description,
   children,
@@ -68,7 +50,7 @@ export function AdminPageFrame({
   return (
     <div className="bg-muted/30">
       <div className="xl:grid xl:grid-cols-[auto_1fr]">
-        <AdminNav />
+        <DistributorNav />
         <div className="min-w-0">
           <div className="mx-auto max-w-7xl px-4 py-8">
             <div>
