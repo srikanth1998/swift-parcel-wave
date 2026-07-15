@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { MapPin, Pencil, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { LogOut, MapPin, Pencil, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,7 @@ const emptyAddress: AddressInput = {
 
 function ProfilePage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: profile } = useQuery({ queryKey: ["my-profile"], queryFn: () => getMyProfile() });
   const { data: addresses = [] } = useQuery({
     queryKey: ["my-addresses"],
@@ -260,6 +263,7 @@ function ProfilePage() {
       </section>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        {/* address dialog */}
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit address" : "Add address"}</DialogTitle>
@@ -382,6 +386,28 @@ function ProfilePage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <section className="mt-8 rounded-lg border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Sign out</h2>
+            <p className="text-sm text-muted-foreground">
+              You'll be returned to the home page.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await qc.cancelQueries();
+              qc.clear();
+              await supabase.auth.signOut();
+              navigate({ to: "/auth", replace: true });
+            }}
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Sign out
+          </Button>
+        </div>
+      </section>
     </div>
   );
 }
