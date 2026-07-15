@@ -189,6 +189,60 @@ function Checkout() {
       <div className="space-y-8">
         <h1 className="font-display text-3xl font-semibold">Checkout</h1>
 
+        {user && savedAddresses.length > 0 && (
+          <section className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-semibold">
+                <MapPin className="mr-1 inline h-4 w-4 text-primary" />
+                Deliver to
+              </h2>
+              <Link to="/profile" className="text-xs font-medium text-primary hover:underline">
+                Manage addresses
+              </Link>
+            </div>
+            <div className="mt-4 space-y-2">
+              {savedAddresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${
+                    selectedAddressId === a.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="saved-address"
+                    className="mt-1"
+                    checked={selectedAddressId === a.id}
+                    onChange={() => setSelectedAddressId(a.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{a.label || a.full_name}</span>
+                      {a.is_default && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {a.full_name} · {a.phone}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {a.line1}
+                      {a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} {a.zip}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              You can adjust the details below before placing the order.
+            </p>
+          </section>
+        )}
+
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-semibold">Contact</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
