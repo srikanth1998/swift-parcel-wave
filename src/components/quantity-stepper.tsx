@@ -23,13 +23,14 @@ export function QuantityStepper({
         type="button"
         aria-label="Decrease quantity"
         onClick={() => onChange(Math.max(min, value - 1))}
-        className={`${btn} flex h-full items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40`}
+        className={`${btn} flex h-full items-center justify-center text-primary transition-transform duration-150 ease-out hover:bg-primary/10 active:scale-90 disabled:opacity-40`}
         disabled={value <= min}
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
       <span
-        className={`${size === "sm" ? "w-7 text-xs" : "w-9 text-sm"} text-center font-semibold text-primary tabular-nums`}
+        key={value}
+        className={`${size === "sm" ? "w-7 text-xs" : "w-9 text-sm"} animate-badge-bump text-center font-semibold text-primary tabular-nums`}
       >
         {value}
       </span>
@@ -37,7 +38,7 @@ export function QuantityStepper({
         type="button"
         aria-label="Increase quantity"
         onClick={() => onChange(Math.min(max, value + 1))}
-        className={`${btn} flex h-full items-center justify-center text-primary hover:bg-primary/10 disabled:opacity-40`}
+        className={`${btn} flex h-full items-center justify-center text-primary transition-transform duration-150 ease-out hover:bg-primary/10 active:scale-90 disabled:opacity-40`}
         disabled={value >= max}
       >
         <Plus className="h-3.5 w-3.5" />

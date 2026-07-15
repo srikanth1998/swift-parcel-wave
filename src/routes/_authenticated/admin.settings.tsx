@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -160,6 +161,7 @@ function AdminSettingsPage() {
           </section>
 
           <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="animate-spin" />}
             {mutation.isPending ? "Saving..." : "Save settings"}
           </Button>
         </form>

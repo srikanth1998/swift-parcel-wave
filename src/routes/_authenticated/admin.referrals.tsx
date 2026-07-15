@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   Download,
   Eye,
+  Loader2,
   Network,
   Search,
   SlidersHorizontal,
@@ -12,7 +13,7 @@ import {
   WalletCards,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { toast } from "sonner";
 import {
@@ -80,6 +81,13 @@ function AdminReferralPage() {
     dateTo: "",
   });
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // Status pills should only "bump" in response to a real change, not on the
+  // table's first paint (which would fire the animation on every visible row
+  // at once). This flips true after mount, so only later re-renders animate.
+  const badgeMotionRef = useRef(false);
+  useEffect(() => {
+    badgeMotionRef.current = true;
+  }, []);
 
   const serverFilters = useMemo(
     () => ({
@@ -288,7 +296,9 @@ function AdminReferralPage() {
                   ) : data?.users.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                        No users found.
+                        <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                          No users found.
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -342,7 +352,7 @@ function AdminReferralPage() {
                 </div>
                 <div className="space-y-2 border-l border-border pl-4">
                   {directChildren.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground">
+                    <div className="animate-in fade-in slide-in-from-bottom-1 rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground duration-300 fill-mode-both">
                       No direct referrals.
                     </div>
                   ) : (
@@ -385,7 +395,7 @@ function AdminReferralPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+              <div className="animate-in fade-in slide-in-from-bottom-1 mt-4 rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground duration-300 fill-mode-both">
                 Select a user to view hierarchy.
               </div>
             )}
@@ -425,7 +435,9 @@ function AdminReferralPage() {
                 ) : data?.commissions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
-                      No commissions found.
+                      <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                        No commissions found.
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -452,7 +464,8 @@ function AdminReferralPage() {
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                          key={commission.status}
+                          className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${
                             STATUS_CLASS[commission.status]
                           }`}
                         >
@@ -473,7 +486,13 @@ function AdminReferralPage() {
                                 })
                               }
                             >
-                              <CheckCircle2 />
+                              {updateStatusMutation.isPending &&
+                              updateStatusMutation.variables?.id === commission.id &&
+                              updateStatusMutation.variables?.status === "approved" ? (
+                                <Loader2 className="animate-spin" />
+                              ) : (
+                                <CheckCircle2 />
+                              )}
                               Approve
                             </Button>
                           )}
@@ -487,7 +506,13 @@ function AdminReferralPage() {
                                 updateStatusMutation.mutate({ id: commission.id, status: "paid" })
                               }
                             >
-                              <WalletCards />
+                              {updateStatusMutation.isPending &&
+                              updateStatusMutation.variables?.id === commission.id &&
+                              updateStatusMutation.variables?.status === "paid" ? (
+                                <Loader2 className="animate-spin" />
+                              ) : (
+                                <WalletCards />
+                              )}
                               Paid
                             </Button>
                           )}
@@ -503,7 +528,13 @@ function AdminReferralPage() {
                                 })
                               }
                             >
-                              <XCircle />
+                              {updateStatusMutation.isPending &&
+                              updateStatusMutation.variables?.id === commission.id &&
+                              updateStatusMutation.variables?.status === "cancelled" ? (
+                                <Loader2 className="animate-spin" />
+                              ) : (
+                                <XCircle />
+                              )}
                               Cancel
                             </Button>
                           )}

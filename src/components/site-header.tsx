@@ -14,6 +14,7 @@ import {
   Network,
   LayoutDashboard,
   UserRound,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -142,17 +143,30 @@ export function SiteHeader() {
             asChild
             variant="default"
             size="sm"
-            className="relative h-11 gap-2 rounded-full pl-4 pr-4"
+            className="relative h-11 gap-2 rounded-full pl-4 pr-4 transition-transform duration-150 active:scale-95"
           >
             <Link to="/cart" aria-label="Cart">
-              <ShoppingCart className="h-4 w-4" />
+              <span className="relative flex items-center">
+                <ShoppingCart className="h-4 w-4" />
+                {hydrated && itemCount > 0 && (
+                  <span
+                    key={itemCount}
+                    className="absolute -right-2 -top-2 flex h-4 min-w-4 animate-badge-bump items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground sm:hidden"
+                  >
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                )}
+              </span>
               <span className="hidden text-sm font-semibold sm:inline">
                 {hydrated && itemCount > 0
                   ? `${itemCount} item${itemCount === 1 ? "" : "s"}`
                   : "Cart"}
               </span>
               {hydrated && itemCount > 0 && (
-                <span className="ml-1 hidden rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold sm:inline">
+                <span
+                  key={subtotalCents}
+                  className="ml-1 hidden animate-in fade-in rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[11px] font-semibold duration-200 sm:inline"
+                >
                   ₹{Math.round(subtotalCents / 100)}
                 </span>
               )}
@@ -177,12 +191,12 @@ export function SiteHeader() {
         <div className="mx-auto flex max-w-7xl items-center gap-1 px-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="-mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2.5 text-sm font-semibold text-primary">
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground text-[10px]">
-                  ☰
+              <button className="group -mb-px flex items-center gap-1.5 border-b-2 border-primary px-3 py-2.5 text-sm font-semibold text-primary transition-colors">
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary text-primary-foreground transition-transform duration-200 group-hover:scale-105">
+                  <Menu className="h-3 w-3" />
                 </span>
                 Shop by Category
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-64">
@@ -201,7 +215,7 @@ export function SiteHeader() {
 
           <Link
             to="/shop"
-            className="px-3 py-2.5 text-sm font-medium text-foreground hover:text-primary"
+            className="px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:text-primary"
           >
             All Products
           </Link>

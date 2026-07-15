@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, RefreshCw, Save } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
@@ -281,7 +281,7 @@ function AdminProductsBoardPage() {
                 onClick={() => saveAll.mutate(dirtyRows)}
                 disabled={dirtyRows.length === 0 || saveAll.isPending}
               >
-                <Save />
+                {saveAll.isPending ? <Loader2 className="animate-spin" /> : <Save />}
                 {saveAll.isPending ? "Saving..." : `Save all (${dirtyRows.length})`}
               </Button>
             </div>
@@ -308,7 +308,7 @@ function AdminProductsBoardPage() {
               </Button>
               <button
                 type="button"
-                className="text-xs text-muted-foreground hover:underline"
+                className="cursor-pointer text-xs text-muted-foreground transition-colors duration-150 hover:text-foreground hover:underline active:scale-[0.97]"
                 onClick={() => setSelected(new Set())}
               >
                 Clear
@@ -347,7 +347,9 @@ function AdminProductsBoardPage() {
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
-                      No products found.
+                      <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                        No products found.
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -442,7 +444,11 @@ function AdminProductsBoardPage() {
                             disabled={!dirty || saveRow.isPending}
                             onClick={() => saveRow.mutate({ id: product.id, row })}
                           >
-                            <Save className="h-4 w-4" />
+                            {saveRow.isPending && saveRow.variables?.id === product.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
                           </Button>
                         </TableCell>
                       </TableRow>

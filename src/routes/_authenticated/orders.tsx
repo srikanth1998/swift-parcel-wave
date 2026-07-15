@@ -5,6 +5,8 @@ import { formatCents } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/order-status";
 import { Package } from "lucide-react";
 import { format } from "date-fns";
+import { Reveal } from "@/components/reveal";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated/orders")({
   head: () => ({ meta: [{ title: "My orders — FEABazaar" }] }),
@@ -21,9 +23,22 @@ function MyOrders() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <h1 className="font-display text-3xl font-semibold">My orders</h1>
       {isLoading ? (
-        <div className="mt-8 text-muted-foreground">Loading…</div>
+        <div className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between gap-4 p-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <div className="space-y-2 text-right">
+                <Skeleton className="ml-auto h-4 w-16" />
+                <Skeleton className="ml-auto h-3 w-24" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : orders.length === 0 ? (
-        <div className="mt-16 rounded-2xl border border-border bg-card p-12 text-center">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out fill-mode-both mt-16 rounded-2xl border border-border bg-card p-12 text-center">
           <Package className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 text-muted-foreground">You don't have any orders yet.</p>
           <Link to="/shop" className="mt-4 inline-block font-medium text-primary hover:underline">
@@ -32,12 +47,12 @@ function MyOrders() {
         </div>
       ) : (
         <ul className="mt-6 divide-y divide-border rounded-2xl border border-border bg-card">
-          {orders.map((o) => (
-            <li key={o.id}>
+          {orders.map((o, idx) => (
+            <Reveal key={o.id} as="li" index={idx}>
               <Link
                 to="/order/$orderNumber"
                 params={{ orderNumber: o.order_number }}
-                className="flex items-center justify-between gap-4 p-4 hover:bg-secondary/40"
+                className="flex items-center justify-between gap-4 p-4 transition-colors duration-150 hover:bg-secondary/40"
               >
                 <div>
                   <div className="font-medium">{o.order_number}</div>
@@ -50,7 +65,7 @@ function MyOrders() {
                   <div className="text-xs text-primary">{STATUS_LABEL[o.order_status]}</div>
                 </div>
               </Link>
-            </li>
+            </Reveal>
           ))}
         </ul>
       )}

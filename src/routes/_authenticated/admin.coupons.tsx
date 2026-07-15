@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Tag, TicketPercent, Repeat } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Plus, Repeat, Tag, TicketPercent } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
@@ -86,6 +86,13 @@ export const Route = createFileRoute("/_authenticated/admin/coupons")({
 function AdminCouponsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CouponForm>(emptyCoupon);
+  // State pills should only "bump" in response to a real change, not on the
+  // table's first paint (which would fire the animation on every visible row
+  // at once). This flips true after mount, so only later re-renders animate.
+  const badgeMotionRef = useRef(false);
+  useEffect(() => {
+    badgeMotionRef.current = true;
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-coupons"],
@@ -315,6 +322,7 @@ function AdminCouponsPage() {
                 </label>
 
                 <Button type="submit" disabled={upsertMutation.isPending}>
+                  {upsertMutation.isPending && <Loader2 className="animate-spin" />}
                   {upsertMutation.isPending ? "Saving..." : "Save coupon"}
                 </Button>
               </form>
@@ -343,7 +351,9 @@ function AdminCouponsPage() {
                   ) : (data?.coupons ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                        No coupons yet.
+                        <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                          No coupons yet.
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -367,7 +377,8 @@ function AdminCouponsPage() {
                         </TableCell>
                         <TableCell>
                           <span
-                            className={`rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${STATE_BADGE[coupon.state]}`}
+                            key={coupon.state}
+                            className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold capitalize ${STATE_BADGE[coupon.state]}`}
                           >
                             {coupon.state}
                           </span>

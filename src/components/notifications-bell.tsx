@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ type Notif = {
 
 export function NotificationsBell({ userId }: { userId: string }) {
   const [items, setItems] = useState<Notif[]>([]);
+  const [justArrived, setJustArrived] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +46,10 @@ export function NotificationsBell({ userId }: { userId: string }) {
           table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
-        (payload) => setItems((prev) => [payload.new as Notif, ...prev].slice(0, 20)),
+        (payload) => {
+          setItems((prev) => [payload.new as Notif, ...prev].slice(0, 20));
+          setJustArrived(true);
+        },
       )
       .subscribe();
     return () => {
@@ -69,9 +74,15 @@ export function NotificationsBell({ userId }: { userId: string }) {
     <DropdownMenu onOpenChange={(o) => o && markAllRead()}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-          <Bell className="h-5 w-5" />
+          <Bell
+            className={cn("h-5 w-5 transition-transform", justArrived && "animate-bell-ring")}
+            onAnimationEnd={() => setJustArrived(false)}
+          />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">
+            <span
+              key={unread}
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 animate-badge-bump items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground"
+            >
               {unread}
             </span>
           )}
@@ -84,8 +95,12 @@ export function NotificationsBell({ userId }: { userId: string }) {
           <div className="p-4 text-sm text-muted-foreground">No notifications yet.</div>
         ) : (
           <div className="max-h-96 overflow-y-auto">
-            {items.map((n) => (
-              <div key={n.id} className="border-b border-border px-3 py-2 last:border-b-0">
+            {items.map((n, i) => (
+              <div
+                key={n.id}
+                style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}
+                className="animate-in fade-in slide-in-from-top-1 fill-mode-both border-b border-border px-3 py-2 duration-300 last:border-b-0"
+              >
                 <div className="text-sm font-medium text-foreground">{n.title}</div>
                 <div className="text-xs text-muted-foreground">{n.body}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">

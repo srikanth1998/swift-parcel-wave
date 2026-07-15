@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { listCategories, listProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/product-card";
+import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Leaf, ShoppingBasket, Truck, Percent, Sparkles } from "lucide-react";
 
@@ -64,7 +65,7 @@ function Home() {
     <div className="bg-muted/30">
       {/* Hero banner */}
       <section className="mx-auto max-w-7xl px-4 pt-6">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out fill-mode-both">
           <div className="absolute inset-0 opacity-25">
             <img
               src="https://images.unsplash.com/photo-1506617564039-2f3b650b7010?w=1400"
@@ -156,27 +157,28 @@ function Home() {
               accent: "text-sky-700",
               img: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=200",
             },
-          ].map((t) => (
-            <Link
-              key={t.title}
-              to="/shop"
-              className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${t.bg} p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md`}
-            >
-              <div
-                className={`inline-block rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase ${t.accent}`}
+          ].map((t, i) => (
+            <Reveal key={t.title} index={i} className="h-full">
+              <Link
+                to="/shop"
+                className={`group relative block h-full overflow-hidden rounded-2xl bg-gradient-to-br ${t.bg} p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md`}
               >
-                {t.badge}
-              </div>
-              <div className="mt-3 max-w-[65%]">
-                <div className="font-display text-base font-bold text-foreground">{t.title}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{t.body}</div>
-              </div>
-              <img
-                src={t.img}
-                alt=""
-                className="pointer-events-none absolute -right-2 bottom-0 h-20 w-20 rounded-full object-cover ring-4 ring-white/70"
-              />
-            </Link>
+                <div
+                  className={`inline-block rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold uppercase ${t.accent}`}
+                >
+                  {t.badge}
+                </div>
+                <div className="mt-3 max-w-[65%]">
+                  <div className="font-display text-base font-bold text-foreground">{t.title}</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{t.body}</div>
+                </div>
+                <img
+                  src={t.img}
+                  alt=""
+                  className="pointer-events-none absolute -right-2 bottom-0 h-20 w-20 rounded-full object-cover ring-4 ring-white/70"
+                />
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -189,29 +191,30 @@ function Home() {
           href="/shop"
         />
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-          {categories.map((c) => (
-            <Link
-              key={c.id}
-              to="/shop"
-              search={{ category: c.slug }}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
-            >
-              <div className="relative">
-                <div className="h-16 w-16 overflow-hidden rounded-full bg-muted ring-2 ring-primary/10 sm:h-20 sm:w-20">
-                  <img
-                    src={categoryImage(c.slug)}
-                    alt=""
-                    className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                  />
+          {categories.map((c, i) => (
+            <Reveal key={c.id} index={i} className="h-full">
+              <Link
+                to="/shop"
+                search={{ category: c.slug }}
+                className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="relative">
+                  <div className="h-16 w-16 overflow-hidden rounded-full bg-muted ring-2 ring-primary/10 sm:h-20 sm:w-20">
+                    <img
+                      src={categoryImage(c.slug)}
+                      alt=""
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  </div>
+                  <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase text-accent-foreground shadow">
+                    Save
+                  </span>
                 </div>
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase text-accent-foreground shadow">
-                  Save
-                </span>
-              </div>
-              <div className="line-clamp-2 text-xs font-medium text-foreground group-hover:text-primary sm:text-sm">
-                {c.name}
-              </div>
-            </Link>
+                <div className="line-clamp-2 text-xs font-medium text-foreground group-hover:text-primary sm:text-sm">
+                  {c.name}
+                </div>
+              </Link>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -224,8 +227,10 @@ function Home() {
           href="/shop"
         />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {bestSellers.slice(0, 10).map((p) => (
-            <ProductCard key={p.id} product={p} />
+          {bestSellers.slice(0, 10).map((p, i) => (
+            <Reveal key={p.id} index={i} className="h-full">
+              <ProductCard product={p} />
+            </Reveal>
           ))}
         </div>
       </section>
@@ -277,8 +282,10 @@ function Home() {
             }
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {dailyStaples.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {dailyStaples.map((p, i) => (
+              <Reveal key={p.id} index={i} className="h-full">
+                <ProductCard product={p} />
+              </Reveal>
             ))}
           </div>
         </section>

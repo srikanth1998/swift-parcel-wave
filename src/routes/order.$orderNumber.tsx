@@ -9,6 +9,7 @@ import { Check, CircleDot, Package, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Reveal } from "@/components/reveal";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
   order_placed: "bg-gray-100 text-gray-700 border-gray-200",
@@ -71,7 +72,7 @@ function OrderPage() {
     return (
       <div className="bg-muted/30">
         <div className="mx-auto max-w-md px-4 py-16">
-          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out fill-mode-both rounded-2xl border border-border bg-card p-6 text-center">
             <h1 className="font-display text-xl font-bold">Verify your email</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               To view this guest order, please enter the email address used during checkout.
@@ -122,7 +123,7 @@ function OrderPage() {
   return (
     <div className="bg-muted/30">
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out fill-mode-both rounded-2xl border border-border bg-card p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Order</div>
@@ -153,13 +154,13 @@ function OrderPage() {
                 const done = idx < currentIdx;
                 const current = idx === currentIdx;
                 return (
-                  <li key={s} className="flex items-start gap-3">
+                  <Reveal key={s} as="li" index={idx} className="flex items-start gap-3">
                     <div
                       className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full ${
                         done
                           ? "bg-primary text-primary-foreground"
                           : current
-                            ? "bg-accent text-accent-foreground"
+                            ? "bg-accent text-accent-foreground animate-in zoom-in-50 duration-300 ease-out fill-mode-both"
                             : "bg-muted text-muted-foreground"
                       }`}
                     >
@@ -176,7 +177,7 @@ function OrderPage() {
                     >
                       {STATUS_LABEL[s]}
                     </div>
-                  </li>
+                  </Reveal>
                 );
               })}
             </ol>

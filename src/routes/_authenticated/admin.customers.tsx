@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Search, ShieldCheck, UserCog } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,13 @@ function AdminCustomersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const filters = useMemo(() => ({ search }), [search]);
+  // Role pills should only "bump" in response to a real change, not on the
+  // table's first paint (which would fire the animation on every visible row
+  // at once). This flips true after mount, so only later re-renders animate.
+  const badgeMotionRef = useRef(false);
+  useEffect(() => {
+    badgeMotionRef.current = true;
+  }, []);
 
   const {
     data: customers = [],
@@ -114,7 +121,9 @@ function AdminCustomersPage() {
                 ) : customers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                      No customers found.
+                      <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                        No customers found.
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -139,7 +148,7 @@ function AdminCustomersPage() {
                           {customer.roles.map((role) => (
                             <span
                               key={role}
-                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                              className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${
                                 role === "admin"
                                   ? "border-purple-200 bg-purple-50 text-purple-700"
                                   : role === "staff"

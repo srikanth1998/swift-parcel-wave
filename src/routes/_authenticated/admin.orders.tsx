@@ -181,7 +181,9 @@ function AdminOrdersPage() {
                 ) : orders.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                      No orders found.
+                      <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                        No orders found.
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

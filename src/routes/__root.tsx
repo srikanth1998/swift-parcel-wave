@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -138,6 +139,18 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function RouteTransition({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  return (
+    <div
+      key={pathname}
+      className="animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out"
+    >
+      {children}
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -157,7 +170,9 @@ function RootComponent() {
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
           <main className="flex-1 pb-16 md:pb-0">
-            <Outlet />
+            <RouteTransition>
+              <Outlet />
+            </RouteTransition>
           </main>
           <footer className="hidden border-t border-border bg-secondary/40 py-8 text-center text-xs text-muted-foreground md:block">
             © {new Date().getFullYear()} FEABazaar · Fresh groceries, packed with care · Made in

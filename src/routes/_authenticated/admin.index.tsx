@@ -47,7 +47,7 @@ function AdminDashboard() {
         <div className="text-muted-foreground">Loading...</div>
       ) : (
         <div className="space-y-6">
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <section className="grid animate-in fade-in slide-in-from-bottom-1 gap-4 duration-300 ease-out sm:grid-cols-2 xl:grid-cols-5">
             <Metric icon={ShoppingBag} label="Orders 30d" value={data.stats.orders30d} href="/admin/orders" />
             <Metric icon={PackageCheck} label="Open orders" value={data.stats.pendingOrders} href="/admin/orders" />
             <Metric
@@ -171,7 +171,7 @@ function Metric({
     return (
       <Link
         to={href}
-        className="block rounded-md border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/5"
+        className="block rounded-md border border-border bg-card p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/5"
       >
         {content}
       </Link>

@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/input";
 import { formatCents, deriveOffer } from "@/lib/format";
 import { getStoreSettings } from "@/lib/settings.functions";
 import { QuantityStepper } from "@/components/quantity-stepper";
+import { Reveal } from "@/components/reveal";
 import { Trash2, ShoppingBag, Tag, ImageOff } from "lucide-react";
 import { toast } from "sonner";
+
+const REMOVE_ANIM_MS = 200;
 
 export const Route = createFileRoute("/cart")({
   head: () => ({ meta: [{ title: "Your cart — FEABazaar" }] }),
@@ -18,6 +21,7 @@ export const Route = createFileRoute("/cart")({
 function CartPage() {
   const { items, setQty, remove, subtotalCents, hydrated } = useCart();
   const [coupon, setCoupon] = useState("");
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const { data: settings } = useQuery({
     queryKey: ["store-settings"],
     queryFn: () => getStoreSettings(),
@@ -26,11 +30,24 @@ function CartPage() {
   const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
   const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
 
+  const handleRemove = (productId: string) => {
+    if (removingIds.has(productId)) return;
+    setRemovingIds((prev) => new Set(prev).add(productId));
+    setTimeout(() => {
+      remove(productId);
+      setRemovingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(productId);
+        return next;
+      });
+    }, REMOVE_ANIM_MS);
+  };
+
   if (!hydrated) return <div className="mx-auto max-w-4xl px-4 py-16" />;
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+      <div className="mx-auto max-w-2xl animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500 ease-out px-4 py-24 text-center">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary">
           <ShoppingBag className="h-10 w-10" />
         </div>
@@ -67,19 +84,18 @@ function CartPage() {
           </div>
 
           {subtotalCents < freeThresholdCents && (
-            <div className="mt-4 rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-medium text-primary">
+            <div className="mt-4 animate-in fade-in slide-in-from-bottom-1 fill-mode-both duration-300 ease-out rounded-xl bg-primary/10 px-4 py-2.5 text-xs font-medium text-primary">
               Add {formatCents(freeThresholdCents - subtotalCents)} more for FREE delivery! 🎉
             </div>
           )}
 
           <ul className="mt-4 space-y-3">
-            {items.map((item) => {
+            {items.map((item, i) => {
               const offer = deriveOffer(item.slug, item.priceCents);
-              return (
-                <li
-                  key={item.productId}
-                  className="flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4"
-                >
+              const isRemoving = removingIds.has(item.productId);
+              const rowClassName = "flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4";
+              const rowContent = (
+                <>
                   <Link
                     to="/product/$slug"
                     params={{ slug: item.slug }}
@@ -133,7 +149,7 @@ function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => remove(item.productId)}
+                          onClick={() => handleRemove(item.productId)}
                           aria-label="Remove"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -141,7 +157,24 @@ function CartPage() {
                       </div>
                     </div>
                   </div>
-                </li>
+                </>
+              );
+
+              if (isRemoving) {
+                return (
+                  <li
+                    key={item.productId}
+                    className={`${rowClassName} animate-out fade-out slide-out-to-left-4 duration-200 ease-in fill-mode-forwards`}
+                  >
+                    {rowContent}
+                  </li>
+                );
+              }
+
+              return (
+                <Reveal as="li" key={item.productId} index={i} className={rowClassName}>
+                  {rowContent}
+                </Reveal>
               );
             })}
           </ul>

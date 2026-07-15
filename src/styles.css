@@ -160,3 +160,43 @@
     letter-spacing: -0.01em;
   }
 }
+
+/* Motion primitives — micro-interactions (150-300ms) + scroll reveals (300-500ms),
+   transform/opacity only so they stay on the compositor thread. */
+@keyframes badge-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  60% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(2deg); }
+}
+
+.animate-badge-bump {
+  animation: badge-bump 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-bell-ring {
+  animation: bell-ring 600ms ease-in-out;
+  transform-origin: top center;
+}
+
+/* Respect the OS-level motion preference everywhere, including third-party
+   Radix/tw-animate-css driven transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

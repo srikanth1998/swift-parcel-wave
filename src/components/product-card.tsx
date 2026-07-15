@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/hooks/use-cart";
@@ -20,7 +21,8 @@ export type ProductCardData = {
 export function ProductCard({ product }: { product: ProductCardData }) {
   const { add, items, setQty } = useCart();
   const inCart = items.find((i) => i.productId === product.id);
-  
+  const [heartBumpTick, setHeartBumpTick] = useState(0);
+
   // Calculate discount from real mrp_cents field
   const hasDiscount = product.mrp_cents && product.mrp_cents > product.price_cents;
   const discountPct = hasDiscount
@@ -28,7 +30,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
     : 0;
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
+    <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
       {hasDiscount && discountPct > 0 && (
         <span className="absolute left-2 top-2 z-10 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
           {discountPct}% OFF
@@ -40,10 +42,14 @@ export function ProductCard({ product }: { product: ProductCardData }) {
         className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-accent"
         onClick={(e) => {
           e.preventDefault();
+          setHeartBumpTick((t) => t + 1);
           toast.success("Saved to favourites");
         }}
       >
-        <Heart className="h-4 w-4" />
+        <Heart
+          key={heartBumpTick}
+          className={`h-4 w-4 ${heartBumpTick > 0 ? "animate-badge-bump" : ""}`}
+        />
       </button>
 
       <Link
@@ -90,7 +96,13 @@ export function ProductCard({ product }: { product: ProductCardData }) {
             )}
           </div>
           {inCart ? (
-            <QuantityStepper size="sm" value={inCart.qty} onChange={(n) => setQty(product.id, n)} />
+            <div className="animate-in zoom-in-95 fade-in duration-200 ease-out">
+              <QuantityStepper
+                size="sm"
+                value={inCart.qty}
+                onChange={(n) => setQty(product.id, n)}
+              />
+            </div>
           ) : (
             <Button
               size="sm"

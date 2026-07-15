@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit, Plus, Search, Upload, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Edit, Loader2, Plus, Search, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
@@ -100,6 +100,13 @@ function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
+  // Status pills should only "bump" in response to a real change, not on the
+  // table's first paint (which would fire the animation on every visible row
+  // at once). This flips true after mount, so only later re-renders animate.
+  const badgeMotionRef = useRef(false);
+  useEffect(() => {
+    badgeMotionRef.current = true;
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-catalog"],
@@ -337,6 +344,7 @@ function AdminProductsPage() {
                   </p>
                 </Field>
                 <Button type="submit" disabled={productMutation.isPending}>
+                  {productMutation.isPending && <Loader2 className="animate-spin" />}
                   {productMutation.isPending ? "Saving..." : "Save product"}
                 </Button>
               </form>
@@ -422,6 +430,7 @@ function AdminProductsPage() {
                   </p>
                 </Field>
                 <Button type="submit" disabled={categoryMutation.isPending}>
+                  {categoryMutation.isPending && <Loader2 className="animate-spin" />}
                   {categoryMutation.isPending ? "Saving..." : "Save category"}
                 </Button>
               </form>
@@ -463,7 +472,9 @@ function AdminProductsPage() {
                   ) : products.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        No products found.
+                        <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                          No products found.
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -481,7 +492,8 @@ function AdminProductsPage() {
                         <TableCell>
                           <div className="flex flex-wrap gap-1">
                             <span
-                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                              key={product.is_active ? "active" : "hidden"}
+                              className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${
                                 product.is_active
                                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                                   : "border-gray-200 bg-gray-50 text-gray-600"
@@ -490,7 +502,9 @@ function AdminProductsPage() {
                               {product.is_active ? "Active" : "Hidden"}
                             </span>
                             {product.is_featured && (
-                              <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                              <span
+                                className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700`}
+                              >
                                 Featured
                               </span>
                             )}

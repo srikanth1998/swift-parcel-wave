@@ -19,6 +19,8 @@ import { getReferralDashboard } from "@/lib/referrals.functions";
 import { formatCents } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Reveal } from "@/components/reveal";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -102,7 +104,30 @@ function ReferralDashboard() {
   };
 
   if (isLoading || !data) {
-    return <div className="mx-auto max-w-6xl px-4 py-8 text-muted-foreground">Loading...</div>;
+    return (
+      <div className="bg-muted/30">
+        <div className="mx-auto max-w-6xl px-4 py-8">
+          <Skeleton className="h-9 w-64" />
+          <Skeleton className="mt-2 h-4 w-80" />
+
+          <section className="mt-6 grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+          </section>
+
+          <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl" />
+            ))}
+          </section>
+
+          <section className="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+            <Skeleton className="h-72 rounded-xl" />
+            <Skeleton className="h-72 rounded-xl" />
+          </section>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -185,18 +210,26 @@ function ReferralDashboard() {
         </section>
 
         <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Users} label="Total referrals" value={data.stats.totalReferrals} />
-          <StatCard icon={Network} label="Active referrals" value={data.stats.activeReferrals} />
-          <StatCard
-            icon={ShoppingBag}
-            label="Orders generated"
-            value={data.stats.ordersGenerated}
-          />
-          <StatCard
-            icon={BadgeIndianRupee}
-            label="Paid earnings"
-            value={formatCents(data.stats.paidEarningsCents)}
-          />
+          <Reveal index={0}>
+            <StatCard icon={Users} label="Total referrals" value={data.stats.totalReferrals} />
+          </Reveal>
+          <Reveal index={1}>
+            <StatCard icon={Network} label="Active referrals" value={data.stats.activeReferrals} />
+          </Reveal>
+          <Reveal index={2}>
+            <StatCard
+              icon={ShoppingBag}
+              label="Orders generated"
+              value={data.stats.ordersGenerated}
+            />
+          </Reveal>
+          <Reveal index={3}>
+            <StatCard
+              icon={BadgeIndianRupee}
+              label="Paid earnings"
+              value={formatCents(data.stats.paidEarningsCents)}
+            />
+          </Reveal>
         </section>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
@@ -214,15 +247,15 @@ function ReferralDashboard() {
                 You
               </div>
               {data.tree.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out fill-mode-both rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                   No referrals yet.
                 </div>
               ) : (
                 <div className="space-y-2 border-l border-border pl-4">
-                  {data.tree.map((direct) => {
+                  {data.tree.map((direct, i) => {
                     const isOpen = expanded[direct.id] ?? true;
                     return (
-                      <div key={direct.id}>
+                      <Reveal key={direct.id} index={i}>
                         <button
                           type="button"
                           className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-secondary"
@@ -261,7 +294,7 @@ function ReferralDashboard() {
                             ))}
                           </div>
                         )}
-                      </div>
+                      </Reveal>
                     );
                   })}
                 </div>
@@ -306,7 +339,9 @@ function ReferralDashboard() {
                   {filteredHistory.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                        No commissions found.
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out fill-mode-both">
+                          No commissions found.
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (

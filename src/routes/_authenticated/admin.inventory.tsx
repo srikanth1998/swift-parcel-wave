@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, Boxes, PackageX, Layers } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, Boxes, Layers, Loader2, PackageX } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
@@ -56,6 +56,13 @@ function AdminInventoryPage() {
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState<Reason>("restock");
   const [note, setNote] = useState("");
+  // Status pills should only "bump" in response to a real change, not on the
+  // table's first paint (which would fire the animation on every visible row
+  // at once). This flips true after mount, so only later re-renders animate.
+  const badgeMotionRef = useRef(false);
+  useEffect(() => {
+    badgeMotionRef.current = true;
+  }, []);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-inventory"],
@@ -186,6 +193,7 @@ function AdminInventoryPage() {
                     />
                   </Field>
                   <Button type="submit" disabled={mutation.isPending}>
+                    {mutation.isPending && <Loader2 className="animate-spin" />}
                     {mutation.isPending ? "Saving..." : "Apply adjustment"}
                   </Button>
                 </form>
@@ -195,7 +203,7 @@ function AdminInventoryPage() {
                 <h2 className="font-display text-lg font-semibold">Recent adjustments</h2>
                 <div className="mt-3 space-y-2">
                   {(data?.recentAdjustments ?? []).length === 0 ? (
-                    <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+                    <div className="animate-in fade-in slide-in-from-bottom-1 rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground duration-300 fill-mode-both">
                       No adjustments yet.
                     </div>
                   ) : (
@@ -258,7 +266,9 @@ function AdminInventoryPage() {
                     ) : products.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                          No products found.
+                          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                            No products found.
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -274,7 +284,8 @@ function AdminInventoryPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <span
-                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[product.status]}`}
+                              key={product.status}
+                              className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[product.status]}`}
                             >
                               {product.stockQty}
                             </span>

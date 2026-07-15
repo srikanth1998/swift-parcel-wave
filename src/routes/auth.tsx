@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { ref?: string } => ({
@@ -76,7 +77,7 @@ function AuthPage() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <div className="rounded-2xl border border-border bg-card p-8">
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out fill-mode-both rounded-2xl border border-border bg-card p-8">
         <h1 className="font-display text-2xl font-semibold text-center">
           {mode === "sign_in" ? "Welcome back" : "Create an account"}
         </h1>
@@ -132,7 +133,16 @@ function AuthPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "…" : mode === "sign_in" ? "Sign in" : "Create account"}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {mode === "sign_in" ? "Signing in…" : "Creating account…"}
+              </>
+            ) : mode === "sign_in" ? (
+              "Sign in"
+            ) : (
+              "Create account"
+            )}
           </Button>
         </form>
 

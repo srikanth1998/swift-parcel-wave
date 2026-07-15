@@ -7,6 +7,7 @@ import { useCart } from "@/hooks/use-cart";
 import { formatCents } from "@/lib/format";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { ProductCard } from "@/components/product-card";
+import { Reveal } from "@/components/reveal";
 import {
   ChevronRight,
   Heart,
@@ -183,7 +184,7 @@ function ProductPage() {
       <div className="mx-auto max-w-6xl px-4 py-6">
         <div className="grid gap-6 rounded-2xl border border-border bg-card p-4 md:grid-cols-[1fr_1.1fr] md:p-6">
           {/* Gallery */}
-          <div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500 ease-out">
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
               {hasDiscount && discountPct > 0 && (
                 <span className="absolute left-3 top-3 z-10 rounded-md bg-accent px-2 py-1 text-xs font-bold text-accent-foreground shadow">
@@ -205,7 +206,7 @@ function ProductPage() {
           </div>
 
           {/* Info */}
-          <div className="flex flex-col">
+          <div className="flex flex-col animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500 delay-100 ease-out">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {product.brand || "FEABazaar"} {product.categories && <>· {product.categories.name}</>}
             </div>
@@ -307,8 +308,10 @@ function ProductPage() {
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {related.map((p) => (
-                <ProductCard key={p.id} product={p} />
+              {related.map((p, i) => (
+                <Reveal key={p.id} index={i} className="h-full">
+                  <ProductCard product={p} />
+                </Reveal>
               ))}
             </div>
           </section>

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatCents } from "@/lib/format";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 
@@ -184,7 +185,7 @@ function Checkout() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto grid max-w-5xl gap-8 px-4 py-8 md:grid-cols-[1fr_340px]"
+      className="mx-auto grid max-w-5xl animate-in fade-in slide-in-from-bottom-2 fill-mode-both duration-500 ease-out gap-8 px-4 py-8 md:grid-cols-[1fr_340px]"
     >
       <div className="space-y-8">
         <h1 className="font-display text-3xl font-semibold">Checkout</h1>
@@ -484,7 +485,14 @@ function Checkout() {
         <div className="my-4 h-px bg-border" />
         <Row label="Total" value={formatCents(total)} bold />
         <Button type="submit" size="lg" className="mt-6 w-full" disabled={submitting}>
-          {submitting ? "Placing order…" : "Place order"}
+          {submitting ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Placing order…
+            </>
+          ) : (
+            "Place order"
+          )}
         </Button>
       </aside>
     </form>

@@ -4,11 +4,12 @@ import { z } from "zod";
 import { useMemo, useState } from "react";
 import { listCategories, listProducts } from "@/lib/products.functions";
 import { ProductCard } from "@/components/product-card";
+import { Reveal } from "@/components/reveal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Search, SlidersHorizontal, ChevronRight, X } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronRight, X, PackageSearch } from "lucide-react";
 import { deriveOffer } from "@/lib/format";
 
 const shopSearchSchema = z.object({
@@ -175,13 +176,17 @@ function Shop() {
         <div>
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
-              {filtered.map((p) => (
-                <ProductCard key={p.id} product={p} />
+              {filtered.map((p, i) => (
+                <Reveal key={p.id} index={i} className="h-full">
+                  <ProductCard product={p} />
+                </Reveal>
               ))}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-border bg-card py-20 text-center">
-              <div className="text-4xl">🧺</div>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <PackageSearch className="h-7 w-7" />
+              </div>
               <div className="mt-2 font-display text-lg font-semibold">No products match</div>
               <p className="mt-1 text-sm text-muted-foreground">
                 Try clearing filters or searching differently.
