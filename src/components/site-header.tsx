@@ -13,6 +13,7 @@ import {
   Flame,
   Network,
   LayoutDashboard,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +96,12 @@ export function SiteHeader() {
                   <Link to="/orders">
                     <Package className="mr-2 h-4 w-4" />
                     My orders
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <UserRound className="mr-2 h-4 w-4" />
+                    My account
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

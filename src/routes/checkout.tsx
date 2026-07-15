@@ -8,6 +8,7 @@ import { placeOrder } from "@/lib/orders.functions";
 import { getStoreSettings } from "@/lib/settings.functions";
 import { validateCoupon } from "@/lib/coupons.functions";
 import { getWalletBalance } from "@/lib/wallet.functions";
+import { listMyAddresses } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { formatCents } from "@/lib/format";
 import { toast } from "sonner";
+import { MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — FEABazaar" }] }),
@@ -46,6 +48,12 @@ function Checkout() {
   });
   const walletBalance = wallet?.balanceCents ?? 0;
   const [useWallet, setUseWallet] = useState(false);
+  const { data: savedAddresses = [] } = useQuery({
+    queryKey: ["my-addresses", user?.id ?? "guest"],
+    queryFn: () => listMyAddresses(),
+    enabled: !!user,
+  });
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const taxRateBps = settings?.taxRateBps ?? 500;
   const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
   const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
@@ -75,6 +83,30 @@ function Checkout() {
     if (user?.email && !form.email) setForm((f) => ({ ...f, email: user.email ?? "" }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Auto-select default (or first) saved address and prefill form.
+  useEffect(() => {
+    if (!savedAddresses.length) return;
+    const chosen =
+      savedAddresses.find((a) => a.id === selectedAddressId) ||
+      savedAddresses.find((a) => a.is_default) ||
+      savedAddresses[0];
+    if (!chosen) return;
+    if (!selectedAddressId) setSelectedAddressId(chosen.id);
+    setForm((f) => ({
+      ...f,
+      fullName: chosen.full_name,
+      email: chosen.email,
+      phone: chosen.phone,
+      line1: chosen.line1,
+      line2: chosen.line2 ?? "",
+      city: chosen.city,
+      state: chosen.state,
+      zip: chosen.zip,
+      deliveryInstructions: chosen.instructions ?? "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAddresses, selectedAddressId]);
 
   useEffect(() => {
     if (hydrated && items.length === 0) navigate({ to: "/cart" });
@@ -156,6 +188,60 @@ function Checkout() {
     >
       <div className="space-y-8">
         <h1 className="font-display text-3xl font-semibold">Checkout</h1>
+
+        {user && savedAddresses.length > 0 && (
+          <section className="rounded-2xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-semibold">
+                <MapPin className="mr-1 inline h-4 w-4 text-primary" />
+                Deliver to
+              </h2>
+              <Link to="/profile" className="text-xs font-medium text-primary hover:underline">
+                Manage addresses
+              </Link>
+            </div>
+            <div className="mt-4 space-y-2">
+              {savedAddresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition ${
+                    selectedAddressId === a.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="saved-address"
+                    className="mt-1"
+                    checked={selectedAddressId === a.id}
+                    onChange={() => setSelectedAddressId(a.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{a.label || a.full_name}</span>
+                      {a.is_default && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {a.full_name} · {a.phone}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {a.line1}
+                      {a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} {a.zip}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              You can adjust the details below before placing the order.
+            </p>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-semibold">Contact</h2>

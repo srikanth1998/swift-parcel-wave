@@ -152,6 +152,9 @@ export type Database = {
           full_name: string
           id: string
           instructions: string | null
+          is_default: boolean
+          is_saved: boolean
+          label: string | null
           line1: string
           line2: string | null
           phone: string
@@ -166,6 +169,9 @@ export type Database = {
           full_name: string
           id?: string
           instructions?: string | null
+          is_default?: boolean
+          is_saved?: boolean
+          label?: string | null
           line1: string
           line2?: string | null
           phone: string
@@ -180,6 +186,9 @@ export type Database = {
           full_name?: string
           id?: string
           instructions?: string | null
+          is_default?: boolean
+          is_saved?: boolean
+          label?: string | null
           line1?: string
           line2?: string | null
           phone?: string
