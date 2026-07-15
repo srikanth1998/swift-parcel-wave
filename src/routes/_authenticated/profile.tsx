@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { MapPin, Pencil, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { LogOut, MapPin, Pencil, Plus, Star, Trash2, UserRound } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +50,7 @@ const emptyAddress: AddressInput = {
 
 function ProfilePage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: profile } = useQuery({ queryKey: ["my-profile"], queryFn: () => getMyProfile() });
   const { data: addresses = [] } = useQuery({
     queryKey: ["my-addresses"],
