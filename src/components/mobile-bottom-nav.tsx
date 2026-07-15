@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Store, ShoppingCart, User } from "lucide-react";
+import { Home, Store, ShoppingCart, User, Package } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuthUser } from "@/hooks/use-auth";
 
@@ -8,7 +8,7 @@ export function MobileBottomNav() {
   const { user } = useAuthUser();
 
   const items: Array<{
-    to: "/" | "/shop" | "/cart" | "/orders" | "/auth";
+    to: "/" | "/shop" | "/cart" | "/orders" | "/auth" | "/profile";
     label: string;
     icon: typeof Home;
     badge?: number;
@@ -16,7 +16,10 @@ export function MobileBottomNav() {
     { to: "/", label: "Home", icon: Home },
     { to: "/shop", label: "Shop", icon: Store },
     { to: "/cart", label: "Cart", icon: ShoppingCart, badge: hydrated ? itemCount : 0 },
-    { to: user ? "/orders" : "/auth", label: user ? "Orders" : "Sign in", icon: User },
+    { to: user ? "/orders" : "/auth", label: user ? "Orders" : "Sign in", icon: Package },
+    ...(user
+      ? [{ to: "/profile" as const, label: "Account", icon: User }]
+      : []),
   ];
 
   return (
