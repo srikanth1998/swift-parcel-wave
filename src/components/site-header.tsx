@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   UserRound,
   Menu,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ export function SiteHeader() {
     },
   });
   const isBackOffice = roles.includes("admin") || roles.includes("staff");
+  const isDistributor = roles.includes("distributor");
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -116,6 +118,14 @@ export function SiteHeader() {
                     <Link to="/admin">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
                       Back office
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {isDistributor && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/distributor">
+                      <Truck className="mr-2 h-4 w-4" />
+                      Distributor dashboard
                     </Link>
                   </DropdownMenuItem>
                 )}

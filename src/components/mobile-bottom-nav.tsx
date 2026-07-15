@@ -1,8 +1,10 @@
 import type { ComponentType } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Store, ShoppingCart, User, Package } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Home, Store, ShoppingCart, User, Package, Truck } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuthUser } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 function TabContent({
@@ -56,9 +58,22 @@ export function MobileBottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { itemCount, hydrated } = useCart();
   const { user } = useAuthUser();
+  const { data: roles = [] } = useQuery({
+    queryKey: ["my-roles", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id);
+      if (error) return [];
+      return data.map((row) => row.role);
+    },
+  });
+  const isDistributor = roles.includes("distributor");
 
   const items: Array<{
-    to: "/" | "/shop" | "/cart" | "/orders" | "/auth" | "/profile";
+    to: "/" | "/shop" | "/cart" | "/orders" | "/auth" | "/profile" | "/distributor";
     label: string;
     icon: typeof Home;
     badge?: number;
@@ -91,6 +106,16 @@ export function MobileBottomNav() {
             label: "Account",
             icon: User,
             active: pathname.startsWith("/profile"),
+          },
+        ]
+      : []),
+    ...(isDistributor
+      ? [
+          {
+            to: "/distributor" as const,
+            label: "Distributor",
+            icon: Truck,
+            active: pathname.startsWith("/distributor"),
           },
         ]
       : []),
