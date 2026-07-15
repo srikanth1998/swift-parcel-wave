@@ -232,11 +232,12 @@ function AdminProductsPage() {
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field label="Image URL">
-                    <Input
+                  <Field label="Image">
+                    <ImageUploadField
+                      folder="products"
                       value={productForm.imageUrl}
-                      onChange={(event) =>
-                        setProductForm((current) => ({ ...current, imageUrl: event.target.value }))
+                      onChange={(imageUrl) =>
+                        setProductForm((current) => ({ ...current, imageUrl }))
                       }
                     />
                   </Field>
@@ -385,11 +386,12 @@ function AdminProductsPage() {
                   </Field>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-                  <Field label="Image URL">
-                    <Input
+                  <Field label="Image">
+                    <ImageUploadField
+                      folder="categories"
                       value={categoryForm.imageUrl}
-                      onChange={(event) =>
-                        setCategoryForm((current) => ({ ...current, imageUrl: event.target.value }))
+                      onChange={(imageUrl) =>
+                        setCategoryForm((current) => ({ ...current, imageUrl }))
                       }
                     />
                   </Field>
@@ -608,5 +610,113 @@ function ToggleField({
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
       {label}
     </label>
+  );
+}
+
+function ImageUploadField({
+  folder,
+  value,
+  onChange,
+}: {
+  folder: "products" | "categories";
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] ?? "");
+        };
+        reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
+      const { url } = await uploadAdminImage({
+        data: {
+          fileBase64,
+          filename: file.name,
+          contentType: file.type,
+          folder,
+        },
+      });
+      onChange(url);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {value ? (
+        <div className="flex items-start gap-3">
+          <img
+            src={value}
+            alt="Preview"
+            className="h-20 w-20 rounded-md border border-border object-cover"
+          />
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Upload />
+              {uploading ? "Uploading..." : "Replace"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange("")}
+              disabled={uploading}
+            >
+              <X />
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+        >
+          <Upload />
+          {uploading ? "Uploading..." : "Upload image"}
+        </Button>
+      )}
+      <Input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/svg+xml"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) void handleFile(file);
+        }}
+      />
+      <p className="text-xs text-muted-foreground">PNG, JPG, WebP up to 5 MB.</p>
+    </div>
   );
 }
