@@ -585,3 +585,56 @@ export const updateAdminUserRoles = createServerFn({ method: "POST" })
     if (insertError) throw new Error(insertError.message);
     return { ok: true };
   });
+
+// Upload an image (base64-encoded from the browser) to the private
+// `product-images` storage bucket and return a very long-lived signed URL
+// that is stored on the product/category row. Only admins may upload.
+const uploadImageSchema = z.object({
+  fileBase64: z.string().min(1),
+  filename: z.string().trim().min(1).max(200),
+  contentType: z
+    .string()
+    .trim()
+    .regex(/^image\/(png|jpe?g|webp|gif|avif|svg\+xml)$/i, "Only image files are allowed"),
+  folder: z.enum(["products", "categories"]),
+});
+
+const TEN_YEARS_SECONDS = 60 * 60 * 24 * 365 * 10;
+
+export const uploadAdminImage = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => uploadImageSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireRole(["admin"]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const buffer = Buffer.from(data.fileBase64, "base64");
+    if (buffer.byteLength === 0) throw new Error("Empty file");
+    if (buffer.byteLength > 5 * 1024 * 1024) {
+      throw new Error("Image is larger than 5 MB");
+    }
+
+    const safeName = data.filename
+      .toLowerCase()
+      .replace(/[^a-z0-9.]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(-80) || "image";
+    const path = `${data.folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("product-images")
+      .upload(path, buffer, {
+        contentType: data.contentType,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (uploadError) throw new Error(uploadError.message);
+
+    const { data: signed, error: signError } = await supabaseAdmin.storage
+      .from("product-images")
+      .createSignedUrl(path, TEN_YEARS_SECONDS);
+    if (signError || !signed?.signedUrl) {
+      throw new Error(signError?.message ?? "Failed to sign uploaded image URL");
+    }
+
+    return { url: signed.signedUrl, path };
+  });
