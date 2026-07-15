@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Edit, Plus, Search, Upload, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
@@ -24,7 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminCatalog, upsertAdminCategory, upsertAdminProduct } from "@/lib/admin.functions";
+import {
+  getAdminCatalog,
+  uploadAdminImage,
+  upsertAdminCategory,
+  upsertAdminProduct,
+} from "@/lib/admin.functions";
 import { formatCents } from "@/lib/format";
 
 type ProductForm = {
