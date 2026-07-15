@@ -8,6 +8,7 @@ import { placeOrder } from "@/lib/orders.functions";
 import { getStoreSettings } from "@/lib/settings.functions";
 import { validateCoupon } from "@/lib/coupons.functions";
 import { getWalletBalance } from "@/lib/wallet.functions";
+import { listMyAddresses } from "@/lib/profile.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { formatCents } from "@/lib/format";
 import { toast } from "sonner";
+import { MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({ meta: [{ title: "Checkout — FEABazaar" }] }),
@@ -46,6 +48,12 @@ function Checkout() {
   });
   const walletBalance = wallet?.balanceCents ?? 0;
   const [useWallet, setUseWallet] = useState(false);
+  const { data: savedAddresses = [] } = useQuery({
+    queryKey: ["my-addresses", user?.id ?? "guest"],
+    queryFn: () => listMyAddresses(),
+    enabled: !!user,
+  });
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const taxRateBps = settings?.taxRateBps ?? 500;
   const deliveryChargeCents = settings?.deliveryChargeCents ?? 4000;
   const freeThresholdCents = settings?.freeDeliveryThresholdCents ?? 49900;
@@ -75,6 +83,30 @@ function Checkout() {
     if (user?.email && !form.email) setForm((f) => ({ ...f, email: user.email ?? "" }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Auto-select default (or first) saved address and prefill form.
+  useEffect(() => {
+    if (!savedAddresses.length) return;
+    const chosen =
+      savedAddresses.find((a) => a.id === selectedAddressId) ||
+      savedAddresses.find((a) => a.is_default) ||
+      savedAddresses[0];
+    if (!chosen) return;
+    if (!selectedAddressId) setSelectedAddressId(chosen.id);
+    setForm((f) => ({
+      ...f,
+      fullName: chosen.full_name,
+      email: chosen.email,
+      phone: chosen.phone,
+      line1: chosen.line1,
+      line2: chosen.line2 ?? "",
+      city: chosen.city,
+      state: chosen.state,
+      zip: chosen.zip,
+      deliveryInstructions: chosen.instructions ?? "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAddresses, selectedAddressId]);
 
   useEffect(() => {
     if (hydrated && items.length === 0) navigate({ to: "/cart" });
