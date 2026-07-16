@@ -642,6 +642,51 @@ export const requestStockTransfer = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Batch version: file one request per product in a single call, so a
+// distributor can fill in quantities across the whole catalog (weekly
+// replenishment) and submit once instead of one dialog per item. Each line
+// still becomes its own stock_transfer_requests row (the hub reviews and can
+// approve/partial-approve/reject each independently); the optional note is
+// shared across the whole batch.
+const batchRequestStockSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.string().uuid(),
+        requestedQty: z.number().int().min(1).max(1_000_000),
+      }),
+    )
+    .min(1)
+    .max(500),
+  note: z.string().trim().max(300).nullable().optional(),
+});
+
+export const requestStockTransfers = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => batchRequestStockSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { userId, distributorId } = await requireDistributor();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Collapse duplicate productIds (a product typed twice) by summing, so we
+    // never insert two rows for the same product in one batch.
+    const qtyByProduct = new Map<string, number>();
+    for (const item of data.items) {
+      qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.requestedQty);
+    }
+
+    const rows = [...qtyByProduct.entries()].map(([productId, requestedQty]) => ({
+      requesting_distributor_id: distributorId,
+      product_id: productId,
+      requested_qty: Math.min(requestedQty, 1_000_000),
+      note: data.note || null,
+      requested_by: userId,
+    }));
+
+    const { error } = await supabaseAdmin.from("stock_transfer_requests").insert(rows);
+    if (error) throw new Error(error.message);
+    return { ok: true, count: rows.length };
+  });
+
 export const getMyStockRequests = createServerFn({ method: "GET" }).handler(async () => {
   const { distributorId } = await requireDistributor();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

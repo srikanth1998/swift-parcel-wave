@@ -36,7 +36,7 @@ import {
   adjustDistributorInventory,
   getDistributorInventory,
   getMyStockRequests,
-  requestStockTransfer,
+  requestStockTransfers,
 } from "@/lib/distributors.functions";
 import { formatCents } from "@/lib/format";
 
@@ -76,9 +76,11 @@ function DistributorInventoryPage() {
   const [amount, setAmount] = useState(0);
   const [reason, setReason] = useState<Reason>("restock");
   const [note, setNote] = useState("");
-  const [requestProductId, setRequestProductId] = useState<string | null>(null);
-  const [requestQty, setRequestQty] = useState(1);
-  const [requestNote, setRequestNote] = useState("");
+  // Batch stock request: quantities typed inline per product (keyed by
+  // productId), submitted together — no per-item dialog. Values are strings so
+  // an empty field stays blank instead of showing 0.
+  const [requestQtys, setRequestQtys] = useState<Record<string, string>>({});
+  const [batchNote, setBatchNote] = useState("");
   // Status pills should only "bump" in response to a real change, not on the
   // table's first paint (which would fire the animation on every visible row
   // at once). This flips true after mount, so only later re-renders animate.
@@ -98,7 +100,10 @@ function DistributorInventoryPage() {
   });
 
   const activeItem = data?.items.find((item) => item.id === activeItemId);
-  const requestItem = data?.items.find((item) => item.productId === requestProductId);
+
+  const pendingRequests = Object.entries(requestQtys)
+    .map(([productId, value]) => ({ productId, requestedQty: Math.floor(Number(value)) }))
+    .filter((r) => Number.isFinite(r.requestedQty) && r.requestedQty >= 1);
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -118,20 +123,18 @@ function DistributorInventoryPage() {
     onError: (err) => toast.error(err instanceof Error ? err.message : "Adjustment failed"),
   });
 
-  const requestMutation = useMutation({
+  const batchRequestMutation = useMutation({
     mutationFn: () => {
-      if (!requestItem) throw new Error("Pick a product first");
-      return requestStockTransfer({
-        data: { productId: requestItem.productId, requestedQty: requestQty, note: requestNote || null },
-      });
+      if (pendingRequests.length === 0) throw new Error("Enter a quantity for at least one product");
+      return requestStockTransfers({ data: { items: pendingRequests, note: batchNote || null } });
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["distributor-inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["my-stock-requests"] });
-      setRequestProductId(null);
-      setRequestQty(1);
-      setRequestNote("");
-      toast.success("Stock request sent");
+      const count = result?.count ?? 0;
+      setRequestQtys({});
+      setBatchNote("");
+      toast.success(`${count} stock request${count === 1 ? "" : "s"} sent`);
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Request failed"),
   });
@@ -152,14 +155,11 @@ function DistributorInventoryPage() {
     setNote("");
   }
 
-  function openRequest(productId: string) {
-    setRequestProductId(productId);
-    setRequestQty(1);
-    setRequestNote("");
-  }
-
   return (
-    <DistributorPageFrame title="Inventory" description="Track your stock levels and log every adjustment.">
+    <DistributorPageFrame
+      title="Inventory"
+      description="Track stock, log adjustments, and request more from the supply hub."
+    >
       {error ? (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Inventory could not load."}
@@ -181,7 +181,44 @@ function DistributorInventoryPage() {
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search items"
                 />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Enter a quantity in the “Request” column for anything you need, then send them all
+                  at once.
+                </p>
               </div>
+
+              {pendingRequests.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-bottom-1 sticky bottom-4 z-10 flex flex-wrap items-center gap-3 rounded-md border border-primary/40 bg-primary/5 p-3 shadow-md duration-200">
+                  <div className="text-sm font-semibold text-primary">
+                    {pendingRequests.length} product{pendingRequests.length === 1 ? "" : "s"} to request
+                  </div>
+                  <Input
+                    value={batchNote}
+                    onChange={(event) => setBatchNote(event.target.value)}
+                    maxLength={300}
+                    placeholder="Note for the hub (optional) — e.g. Weekly replenishment"
+                    className="h-9 min-w-40 flex-1"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRequestQtys({})}
+                    disabled={batchRequestMutation.isPending}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    onClick={() => batchRequestMutation.mutate()}
+                    disabled={batchRequestMutation.isPending}
+                  >
+                    {batchRequestMutation.isPending && <Loader2 className="animate-spin" />}
+                    {batchRequestMutation.isPending
+                      ? "Sending..."
+                      : `Send ${pendingRequests.length} request${pendingRequests.length === 1 ? "" : "s"}`}
+                  </Button>
+                </div>
+              )}
+
               <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
                 <Table>
                   <TableHeader>
@@ -190,19 +227,20 @@ function DistributorInventoryPage() {
                       <TableHead>Category</TableHead>
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">Stock</TableHead>
+                      <TableHead className="text-right">Request</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : items.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                           No items found.
                         </TableCell>
                       </TableRow>
@@ -224,18 +262,30 @@ function DistributorInventoryPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {item.id ? (
-                                <Button variant="outline" size="sm" onClick={() => openAdjust(item.id!)}>
-                                  Adjust
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">Not stocked</span>
-                              )}
-                              <Button variant="outline" size="sm" onClick={() => openRequest(item.productId)}>
-                                Request stock
+                            <Input
+                              type="number"
+                              min={0}
+                              inputMode="numeric"
+                              value={requestQtys[item.productId] ?? ""}
+                              onChange={(event) =>
+                                setRequestQtys((prev) => ({
+                                  ...prev,
+                                  [item.productId]: event.target.value,
+                                }))
+                              }
+                              placeholder="0"
+                              className="ml-auto h-8 w-20 text-right"
+                              aria-label={`Request quantity for ${item.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.id ? (
+                              <Button variant="outline" size="sm" onClick={() => openAdjust(item.id!)}>
+                                Adjust
                               </Button>
-                            </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not stocked</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
@@ -421,47 +471,6 @@ function DistributorInventoryPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={requestProductId !== null} onOpenChange={(open) => !open && setRequestProductId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request stock</DialogTitle>
-            <DialogDescription>
-              {requestItem ? `${requestItem.name} · currently ${requestItem.stockQty} on hand` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              requestMutation.mutate();
-            }}
-          >
-            <Field label="Requested quantity">
-              <Input
-                type="number"
-                min={1}
-                value={requestQty}
-                onChange={(event) => setRequestQty(Number(event.target.value))}
-                required
-              />
-            </Field>
-            <Field label="Note (optional)">
-              <Input
-                value={requestNote}
-                onChange={(event) => setRequestNote(event.target.value)}
-                maxLength={300}
-                placeholder="e.g. Need for weekend rush"
-              />
-            </Field>
-            <DialogFooter>
-              <Button type="submit" disabled={requestMutation.isPending || requestQty < 1}>
-                {requestMutation.isPending && <Loader2 className="animate-spin" />}
-                {requestMutation.isPending ? "Sending..." : "Send request"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </DistributorPageFrame>
   );
 }
