@@ -333,10 +333,40 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
       tags: data.tags ?? [],
     };
 
-    const result = data.id
-      ? await supabaseAdmin.from("products").update(row).eq("id", data.id)
-      : await supabaseAdmin.from("products").insert(row);
-    if (result.error) throw new Error(result.error.message);
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("products").update(row).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+
+    const { data: created, error: insertError } = await supabaseAdmin
+      .from("products")
+      .insert(row)
+      .select("id")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+
+    // A brand-new product has no distributor_inventory rows anywhere yet —
+    // seed it into every supply-hub distributor (mirrors what the original
+    // migration did for existing products) so it's immediately available to
+    // hand out via stock transfer requests. Regular (non-hub) distributors
+    // deliberately do NOT get a row here; they request stock like normal.
+    const { data: hubs, error: hubsError } = await supabaseAdmin
+      .from("distributors")
+      .select("id")
+      .eq("can_supply", true);
+    if (hubsError) throw new Error(hubsError.message);
+    if (hubs && hubs.length > 0) {
+      const { error: seedError } = await supabaseAdmin.from("distributor_inventory").insert(
+        hubs.map((hub) => ({
+          distributor_id: hub.id,
+          product_id: created.id,
+          stock_qty: row.stock_qty,
+        })),
+      );
+      if (seedError) throw new Error(seedError.message);
+    }
+
     return { ok: true };
   });
 

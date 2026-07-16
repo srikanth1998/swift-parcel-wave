@@ -24,6 +24,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedOrdersRouteImport } from './routes/_authenticated/orders'
 import { Route as DistributorDistributorIndexRouteImport } from './routes/_distributor/distributor.index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
+import { Route as DistributorDistributorRequestsRouteImport } from './routes/_distributor/distributor.requests'
 import { Route as DistributorDistributorOrdersRouteImport } from './routes/_distributor/distributor.orders'
 import { Route as DistributorDistributorInventoryRouteImport } from './routes/_distributor/distributor.inventory'
 import { Route as AuthenticatedAdminSettingsRouteImport } from './routes/_authenticated/admin.settings'
@@ -110,6 +111,12 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DistributorDistributorRequestsRoute =
+  DistributorDistributorRequestsRouteImport.update({
+    id: '/distributor/requests',
+    path: '/distributor/requests',
+    getParentRoute: () => DistributorRouteRoute,
+  } as any)
 const DistributorDistributorOrdersRoute =
   DistributorDistributorOrdersRouteImport.update({
     id: '/distributor/orders',
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/distributor/inventory': typeof DistributorDistributorInventoryRoute
   '/distributor/orders': typeof DistributorDistributorOrdersRoute
+  '/distributor/requests': typeof DistributorDistributorRequestsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/distributor/': typeof DistributorDistributorIndexRoute
 }
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/distributor/inventory': typeof DistributorDistributorInventoryRoute
   '/distributor/orders': typeof DistributorDistributorOrdersRoute
+  '/distributor/requests': typeof DistributorDistributorRequestsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/distributor': typeof DistributorDistributorIndexRoute
 }
@@ -255,6 +264,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/settings': typeof AuthenticatedAdminSettingsRoute
   '/_distributor/distributor/inventory': typeof DistributorDistributorInventoryRoute
   '/_distributor/distributor/orders': typeof DistributorDistributorOrdersRoute
+  '/_distributor/distributor/requests': typeof DistributorDistributorRequestsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_distributor/distributor/': typeof DistributorDistributorIndexRoute
 }
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/distributor/inventory'
     | '/distributor/orders'
+    | '/distributor/requests'
     | '/admin/'
     | '/distributor/'
   fileRoutesByTo: FileRoutesByTo
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/distributor/inventory'
     | '/distributor/orders'
+    | '/distributor/requests'
     | '/admin'
     | '/distributor'
   id:
@@ -337,6 +349,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/settings'
     | '/_distributor/distributor/inventory'
     | '/_distributor/distributor/orders'
+    | '/_distributor/distributor/requests'
     | '/_authenticated/admin/'
     | '/_distributor/distributor/'
   fileRoutesById: FileRoutesById
@@ -461,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_distributor/distributor/requests': {
+      id: '/_distributor/distributor/requests'
+      path: '/distributor/requests'
+      fullPath: '/distributor/requests'
+      preLoaderRoute: typeof DistributorDistributorRequestsRouteImport
+      parentRoute: typeof DistributorRouteRoute
+    }
     '/_distributor/distributor/orders': {
       id: '/_distributor/distributor/orders'
       path: '/distributor/orders'
@@ -579,12 +599,14 @@ const AuthenticatedRouteRouteWithChildren =
 interface DistributorRouteRouteChildren {
   DistributorDistributorInventoryRoute: typeof DistributorDistributorInventoryRoute
   DistributorDistributorOrdersRoute: typeof DistributorDistributorOrdersRoute
+  DistributorDistributorRequestsRoute: typeof DistributorDistributorRequestsRoute
   DistributorDistributorIndexRoute: typeof DistributorDistributorIndexRoute
 }
 
 const DistributorRouteRouteChildren: DistributorRouteRouteChildren = {
   DistributorDistributorInventoryRoute: DistributorDistributorInventoryRoute,
   DistributorDistributorOrdersRoute: DistributorDistributorOrdersRoute,
+  DistributorDistributorRequestsRoute: DistributorDistributorRequestsRoute,
   DistributorDistributorIndexRoute: DistributorDistributorIndexRoute,
 }
 
@@ -606,3 +628,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

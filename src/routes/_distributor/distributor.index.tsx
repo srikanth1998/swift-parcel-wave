@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, IndianRupee, PackageCheck, PackageX, ShoppingBag } from "lucide-react";
+import { AlertTriangle, IndianRupee, MapPin, PackageCheck, PackageX, ShoppingBag } from "lucide-react";
 import type { ComponentType } from "react";
 import { DistributorPageFrame } from "@/components/distributor-nav";
 import { Badge } from "@/components/ui/badge";
@@ -49,23 +49,49 @@ function DistributorDashboard() {
       ) : (
         <div className="space-y-6">
           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 ease-out fill-mode-both">
-            <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-card p-4 shadow-sm">
-              <div>
-                <div className="font-display text-xl font-semibold">
-                  {data.distributor?.name ?? "Your distributor"}
+            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <div>
+                  <div className="font-display text-xl font-semibold">
+                    {data.distributor?.name ?? "Your distributor"}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Distributor account</div>
                 </div>
-                <div className="text-sm text-muted-foreground">Distributor account</div>
+                <Badge
+                  variant="outline"
+                  className={
+                    data.distributor?.is_active
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-red-200 bg-red-50 text-red-700"
+                  }
+                >
+                  {data.distributor?.is_active ? "Active" : "Inactive"}
+                </Badge>
               </div>
-              <Badge
-                variant="outline"
-                className={
-                  data.distributor?.is_active
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-red-200 bg-red-50 text-red-700"
-                }
-              >
-                {data.distributor?.is_active ? "Active" : "Inactive"}
-              </Badge>
+
+              <div className="mt-4 border-t border-border pt-4">
+                <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <MapPin className="h-3.5 w-3.5 text-primary" />
+                  Your coverage area
+                </div>
+                {data.serviceAreas.length === 0 ? (
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    No pincodes are assigned to you yet — ask an admin to add coverage on the
+                    Distributors page.
+                  </p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {data.serviceAreas.map((area) => (
+                      <span
+                        key={area.id}
+                        className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary"
+                      >
+                        {area.pincode}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

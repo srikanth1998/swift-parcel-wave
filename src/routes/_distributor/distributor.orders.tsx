@@ -1,12 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Ban, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { DistributorPageFrame } from "@/components/distributor-nav";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,11 +41,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getDistributorOrders, updateDistributorOrder } from "@/lib/distributors.functions";
+import type { Database } from "@/integrations/supabase/types";
+import {
+  getDistributorOrders,
+  markOrderItemUnavailable,
+  updateDistributorOrder,
+} from "@/lib/distributors.functions";
 import { formatCents } from "@/lib/format";
 import { STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
+import { listProducts } from "@/lib/products.functions";
 
 type OrderStatusFilter = OrderStatus | "all";
+type SubstitutionPreference = Database["public"]["Enums"]["substitution_pref_enum"];
+
+const SUBSTITUTION_LABEL: Record<SubstitutionPreference, string> = {
+  replace_similar: "Replace with similar if unavailable",
+  refund_if_unavailable: "Refund if unavailable",
+  contact_me: "Contact customer if unavailable",
+};
 
 // Distributors may only move orders through the fulfillment lifecycle —
 // this must mirror DISTRIBUTOR_ALLOWED_STATUSES in distributors.functions.ts
@@ -61,6 +93,17 @@ function DistributorOrdersPage() {
   const queryClient = useQueryClient();
   const [orderStatus, setOrderStatus] = useState<OrderStatusFilter>("all");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // "Mark unavailable" flows: a Dialog (product picker) for replace_similar,
+  // an AlertDialog (plain confirm) for refund_if_unavailable / contact_me.
+  const [replaceDialogItem, setReplaceDialogItem] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const [replacementProductId, setReplacementProductId] = useState<string>("");
+  const [confirmItem, setConfirmItem] = useState<{
+    id: string;
+    name: string;
+    preference: Extract<SubstitutionPreference, "refund_if_unavailable" | "contact_me">;
+  } | null>(null);
 
   const {
     data: orders = [],
@@ -70,6 +113,14 @@ function DistributorOrdersPage() {
     queryKey: ["distributor-orders", orderStatus],
     queryFn: () => getDistributorOrders({ data: { orderStatus } }),
   });
+
+  // Small (~32 item) active catalog, reused both for the replacement picker
+  // and to resolve a replacement product's name for display.
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", { forSubstitution: true }],
+    queryFn: () => listProducts({ data: {} }),
+  });
+  const productNameById = new Map(products.map((p) => [p.id, p.name]));
 
   const updateMutation = useMutation({
     mutationFn: (input: { orderId: string; orderStatus: OrderStatus }) =>
@@ -81,6 +132,37 @@ function DistributorOrdersPage() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Order update failed"),
   });
+
+  const markUnavailableMutation = useMutation({
+    mutationFn: ({
+      orderItemId,
+      replacementProductId: replacementId,
+    }: {
+      orderItemId: string;
+      replacementProductId?: string;
+      successMessage: string;
+    }) => markOrderItemUnavailable({ data: { orderItemId, replacementProductId: replacementId } }),
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["distributor-orders"] });
+      setReplaceDialogItem(null);
+      setReplacementProductId("");
+      setConfirmItem(null);
+      toast.success(variables.successMessage);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not update item"),
+  });
+
+  function startMarkUnavailable(
+    item: { id: string; name_snapshot: string },
+    preference: SubstitutionPreference,
+  ) {
+    if (preference === "replace_similar") {
+      setReplacementProductId("");
+      setReplaceDialogItem({ id: item.id, name: item.name_snapshot });
+      return;
+    }
+    setConfirmItem({ id: item.id, name: item.name_snapshot, preference });
+  }
 
   return (
     <DistributorPageFrame
@@ -209,6 +291,14 @@ function DistributorOrdersPage() {
                         {isOpen && (
                           <TableRow key={`${order.id}-details`}>
                             <TableCell colSpan={5} className="bg-muted/30 p-4">
+                              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                                <span className="font-medium text-foreground">
+                                  Substitution preference:
+                                </span>
+                                <Badge variant="outline">
+                                  {SUBSTITUTION_LABEL[order.substitution_preference]}
+                                </Badge>
+                              </div>
                               <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                                 <div className="rounded-md border border-border bg-background p-3">
                                   <div className="font-medium">Delivery</div>
@@ -239,7 +329,7 @@ function DistributorOrdersPage() {
                                     {order.items.map((item) => (
                                       <div
                                         key={item.id}
-                                        className="flex justify-between gap-3 py-2 text-sm"
+                                        className="flex items-start justify-between gap-3 py-2 text-sm"
                                       >
                                         <span>
                                           {item.ordered_qty} x {item.name_snapshot}
@@ -248,10 +338,31 @@ function DistributorOrdersPage() {
                                               Unavailable
                                             </Badge>
                                           )}
+                                          {item.is_unavailable && item.replacement_product_id && (
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                              Replaced with{" "}
+                                              {productNameById.get(item.replacement_product_id) ??
+                                                "a substitute product"}
+                                            </div>
+                                          )}
                                         </span>
-                                        <span className="font-medium">
-                                          {formatCents(item.unit_price_cents * item.ordered_qty)}
-                                        </span>
+                                        <div className="flex shrink-0 items-center gap-2">
+                                          <span className="font-medium">
+                                            {formatCents(item.unit_price_cents * item.ordered_qty)}
+                                          </span>
+                                          {!item.is_unavailable && (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              title="Mark unavailable"
+                                              onClick={() =>
+                                                startMarkUnavailable(item, order.substitution_preference)
+                                              }
+                                            >
+                                              <Ban className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -297,6 +408,88 @@ function DistributorOrdersPage() {
           </section>
         </div>
       )}
+
+      <Dialog
+        open={replaceDialogItem !== null}
+        onOpenChange={(open) => !open && setReplaceDialogItem(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose a substitute</DialogTitle>
+            <DialogDescription>
+              {replaceDialogItem
+                ? `"${replaceDialogItem.name}" is unavailable. Pick a replacement product to send instead.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="replacement-product">Replacement product</Label>
+            <Select value={replacementProductId} onValueChange={setReplacementProductId}>
+              <SelectTrigger id="replacement-product">
+                <SelectValue placeholder="Select a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={!replacementProductId || markUnavailableMutation.isPending}
+              onClick={() => {
+                if (!replaceDialogItem) return;
+                markUnavailableMutation.mutate({
+                  orderItemId: replaceDialogItem.id,
+                  replacementProductId,
+                  successMessage: "Item marked unavailable and substitution recorded",
+                });
+              }}
+            >
+              {markUnavailableMutation.isPending && <Loader2 className="animate-spin" />}
+              Confirm substitution
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={confirmItem !== null}
+        onOpenChange={(open) => !open && setConfirmItem(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark item unavailable?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmItem &&
+                (confirmItem.preference === "refund_if_unavailable"
+                  ? `"${confirmItem.name}" will be marked unavailable. This will reduce the amount due on this order.`
+                  : `"${confirmItem.name}" will be marked unavailable. The customer will be notified and needs a follow-up.`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={markUnavailableMutation.isPending}
+              onClick={() => {
+                if (!confirmItem) return;
+                markUnavailableMutation.mutate({
+                  orderItemId: confirmItem.id,
+                  successMessage:
+                    confirmItem.preference === "refund_if_unavailable"
+                      ? "Item marked unavailable — amount due updated"
+                      : "Item marked unavailable — customer notified",
+                });
+              }}
+            >
+              Mark unavailable
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DistributorPageFrame>
   );
 }

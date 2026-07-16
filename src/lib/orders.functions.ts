@@ -89,13 +89,12 @@ export const placeOrder = createServerFn({ method: "POST" })
     }
     const priceMap = new Map(products.map((p) => [p.id, p]));
 
-    // Check stock availability before proceeding
-    for (const item of data.items) {
-      const product = priceMap.get(item.productId)!;
-      if (product.stock_qty < item.qty) {
-        throw new Error(`Insufficient stock for ${product.name}. Only ${product.stock_qty} available.`);
-      }
-    }
+    // Stock (global or distributor-level) intentionally does NOT block
+    // checkout — an order can always be placed. If a distributor can't
+    // actually fulfil a line item, they mark it unavailable when picking and
+    // the customer's chosen substitution_preference (replace/refund/contact)
+    // takes over from there. See markOrderItemUnavailable in
+    // distributors.functions.ts.
 
     // Resolve the distributor that services this address. Every order must
     // snapshot a distributor — checkout is rejected before anything is
@@ -107,27 +106,6 @@ export const placeOrder = createServerFn({ method: "POST" })
       throw new Error(
         `Sorry, we don't deliver to pincode ${data.zip} yet. Please try a different address.`,
       );
-    }
-
-    // Check distributor-level stock (the real fulfillment-level figure) on
-    // top of the global product check above. Also uses supabaseAdmin: a
-    // customer's public/anon client has no RLS read access to another
-    // distributor's inventory.
-    const { data: distributorStock, error: distStockErr } = await supabaseAdmin
-      .from("distributor_inventory")
-      .select("product_id, stock_qty")
-      .eq("distributor_id", distributor.id)
-      .in("product_id", productIds);
-    if (distStockErr) throw new Error(distStockErr.message);
-    const distStockMap = new Map((distributorStock ?? []).map((r) => [r.product_id, r.stock_qty]));
-    for (const item of data.items) {
-      const product = priceMap.get(item.productId)!;
-      const available = distStockMap.get(item.productId) ?? 0;
-      if (available < item.qty) {
-        throw new Error(
-          `Insufficient stock for ${product.name} in your area. Only ${available} available.`,
-        );
-      }
     }
 
     let subtotal = 0;

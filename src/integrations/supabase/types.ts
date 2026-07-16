@@ -238,6 +238,7 @@ export type Database = {
       }
       distributors: {
         Row: {
+          can_supply: boolean
           contact_email: string | null
           contact_phone: string | null
           created_at: string
@@ -247,6 +248,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_supply?: boolean
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -256,6 +258,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_supply?: boolean
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
@@ -720,6 +723,82 @@ export type Database = {
           },
         ]
       }
+      stock_transfer_requests: {
+        Row: {
+          admin_note: string | null
+          approved_qty: number | null
+          created_at: string
+          fulfilled_by_distributor_id: string | null
+          id: string
+          note: string | null
+          product_id: string
+          requested_at: string
+          requested_by: string | null
+          requested_qty: number
+          requesting_distributor_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["stock_transfer_status_enum"]
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          approved_qty?: number | null
+          created_at?: string
+          fulfilled_by_distributor_id?: string | null
+          id?: string
+          note?: string | null
+          product_id: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_qty: number
+          requesting_distributor_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["stock_transfer_status_enum"]
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          approved_qty?: number | null
+          created_at?: string
+          fulfilled_by_distributor_id?: string | null
+          id?: string
+          note?: string | null
+          product_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_qty?: number
+          requesting_distributor_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["stock_transfer_status_enum"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_transfer_requests_fulfilled_by_distributor_id_fkey"
+            columns: ["fulfilled_by_distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfer_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfer_requests_requesting_distributor_id_fkey"
+            columns: ["requesting_distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_settings: {
         Row: {
           delivery_charge_cents: number
@@ -833,6 +912,16 @@ export type Database = {
       }
     }
     Functions: {
+      approve_stock_transfer: {
+        Args: {
+          _admin_note: string
+          _approved_qty: number
+          _fulfilled_by_distributor_id: string
+          _request_id: string
+          _reviewed_by: string
+        }
+        Returns: undefined
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_my_distributor_id: { Args: never; Returns: string }
@@ -890,6 +979,7 @@ export type Database = {
       payment_method_enum: "cod"
       payment_status_enum: "pending" | "confirmed" | "failed" | "refunded"
       referral_commission_status: "pending" | "approved" | "paid" | "cancelled"
+      stock_transfer_status_enum: "pending" | "approved" | "rejected"
       substitution_pref_enum:
         | "replace_similar"
         | "refund_if_unavailable"
@@ -1045,6 +1135,7 @@ export const Constants = {
       payment_method_enum: ["cod"],
       payment_status_enum: ["pending", "confirmed", "failed", "refunded"],
       referral_commission_status: ["pending", "approved", "paid", "cancelled"],
+      stock_transfer_status_enum: ["pending", "approved", "rejected"],
       substitution_pref_enum: [
         "replace_similar",
         "refund_if_unavailable",

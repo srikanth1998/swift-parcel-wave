@@ -67,7 +67,7 @@ export const getAdminDistributors = createServerFn({ method: "GET" }).handler(as
     await Promise.all([
       supabaseAdmin
         .from("distributors")
-        .select("id, name, contact_phone, contact_email, is_active, created_at")
+        .select("id, name, contact_phone, contact_email, is_active, can_supply, created_at")
         .order("created_at", { ascending: true }),
       supabaseAdmin
         .from("service_areas")
@@ -96,6 +96,7 @@ const distributorInputSchema = z.object({
   contactPhone: z.string().trim().max(30).nullable().optional(),
   contactEmail: z.string().trim().email().max(255).nullable().or(z.literal("")).optional(),
   isActive: z.boolean(),
+  canSupply: z.boolean().optional().default(false),
 });
 
 export const upsertAdminDistributor = createServerFn({ method: "POST" })
@@ -109,12 +110,43 @@ export const upsertAdminDistributor = createServerFn({ method: "POST" })
       contact_phone: data.contactPhone || null,
       contact_email: data.contactEmail || null,
       is_active: data.isActive,
+      can_supply: data.canSupply,
     };
 
-    const result = data.id
-      ? await supabaseAdmin.from("distributors").update(row).eq("id", data.id)
-      : await supabaseAdmin.from("distributors").insert(row);
-    if (result.error) throw new Error(result.error.message);
+    if (data.id) {
+      const { error } = await supabaseAdmin.from("distributors").update(row).eq("id", data.id);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+
+    const { data: created, error: insertError } = await supabaseAdmin
+      .from("distributors")
+      .insert(row)
+      .select("id")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+
+    // A new hub distributor starts holding stock immediately (mirrors what
+    // the original migration did for Main Warehouse). A new regular
+    // distributor deliberately starts empty — they're expected to request
+    // stock from a hub via requestStockTransfer, that's the whole point.
+    if (data.canSupply) {
+      const { data: allProducts, error: productsError } = await supabaseAdmin
+        .from("products")
+        .select("id, stock_qty");
+      if (productsError) throw new Error(productsError.message);
+      if (allProducts && allProducts.length > 0) {
+        const { error: seedError } = await supabaseAdmin.from("distributor_inventory").insert(
+          allProducts.map((p) => ({
+            distributor_id: created.id,
+            product_id: p.id,
+            stock_qty: p.stock_qty,
+          })),
+        );
+        if (seedError) throw new Error(seedError.message);
+      }
+    }
+
     return { ok: true };
   });
 
@@ -263,23 +295,37 @@ export const getDistributorOverview = createServerFn({ method: "GET" }).handler(
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [{ data: distributor }, { data: orders, error: ordersError }, { data: inventory, error: invError }] =
-    await Promise.all([
-      supabaseAdmin.from("distributors").select("id, name, is_active").eq("id", distributorId).maybeSingle(),
-      supabaseAdmin
-        .from("orders")
-        .select("id, order_number, order_status, payment_status, total, created_at")
-        .eq("distributor_id", distributorId)
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(200),
-      supabaseAdmin
-        .from("distributor_inventory")
-        .select("id, stock_qty")
-        .eq("distributor_id", distributorId),
-    ]);
+  const [
+    { data: distributor },
+    { data: orders, error: ordersError },
+    { data: inventory, error: invError },
+    { data: serviceAreas, error: areasError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("distributors")
+      .select("id, name, is_active, can_supply")
+      .eq("id", distributorId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("orders")
+      .select("id, order_number, order_status, payment_status, total, created_at")
+      .eq("distributor_id", distributorId)
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabaseAdmin
+      .from("distributor_inventory")
+      .select("id, stock_qty")
+      .eq("distributor_id", distributorId),
+    supabaseAdmin
+      .from("service_areas")
+      .select("id, pincode")
+      .eq("distributor_id", distributorId)
+      .order("pincode", { ascending: true }),
+  ]);
   if (ordersError) throw new Error(ordersError.message);
   if (invError) throw new Error(invError.message);
+  if (areasError) throw new Error(areasError.message);
 
   const orderRows = orders ?? [];
   const inventoryRows = inventory ?? [];
@@ -292,6 +338,7 @@ export const getDistributorOverview = createServerFn({ method: "GET" }).handler(
 
   return {
     distributor,
+    serviceAreas: serviceAreas ?? [],
     stats: {
       orders30d: orderRows.length,
       pendingOrders: pendingOrders.length,
@@ -320,7 +367,7 @@ export const getDistributorOrders = createServerFn({ method: "GET" })
     let query = supabaseAdmin
       .from("orders")
       .select(
-        "id, order_number, order_status, payment_status, payment_method, subtotal, tax, delivery_charge, discount, total, customer_notes, delivery_instructions, created_at, delivery_addresses(full_name, phone, line1, line2, city, state, zip, instructions)",
+        "id, order_number, order_status, payment_status, payment_method, subtotal, tax, delivery_charge, discount, total, customer_notes, delivery_instructions, substitution_preference, created_at, delivery_addresses(full_name, phone, line1, line2, city, state, zip, instructions)",
       )
       .eq("distributor_id", distributorId)
       .order("created_at", { ascending: false })
@@ -335,7 +382,9 @@ export const getDistributorOrders = createServerFn({ method: "GET" })
     const { data: items, error: itemsError } = orderIds.length
       ? await supabaseAdmin
           .from("order_items")
-          .select("id, order_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable")
+          .select(
+            "id, order_id, product_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable, replacement_product_id",
+          )
           .in("order_id", orderIds)
       : { data: [], error: null };
     if (itemsError) throw new Error(itemsError.message);
@@ -414,18 +463,33 @@ export const updateDistributorOrder = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Lists the WHOLE active catalog, not just products this distributor
+// already has a distributor_inventory row for — otherwise a freshly created
+// distributor (zero rows) sees an empty page with nothing to request stock
+// for, which is exactly the discoverability trap that let the original
+// zero-inventory bug go unnoticed. Products with no row yet show
+// status "not_stocked" (distinct from "out" — they were never stocked in
+// the first place, not "ran out") and hasInventoryRow: false, which the UI
+// uses to disable direct "Adjust" (only requestStockTransfer works until a
+// hub distributor fulfils a request and the row is created).
 export const getDistributorInventory = createServerFn({ method: "GET" }).handler(async () => {
   const { distributorId } = await requireDistributor();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const [{ data: inventory, error: invError }, { data: adjustments, error: adjError }] = await Promise.all([
+  const [
+    { data: allProducts, error: productsError },
+    { data: inventory, error: invError },
+    { data: adjustments, error: adjError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("products")
+      .select("id, name, slug, unit_label, price_cents, is_active, categories(name)")
+      .eq("is_active", true)
+      .order("name", { ascending: true }),
     supabaseAdmin
       .from("distributor_inventory")
-      .select(
-        "id, product_id, stock_qty, products(name, slug, unit_label, price_cents, is_active, categories(name))",
-      )
-      .eq("distributor_id", distributorId)
-      .order("stock_qty", { ascending: true }),
+      .select("id, product_id, stock_qty")
+      .eq("distributor_id", distributorId),
     supabaseAdmin
       .from("inventory_adjustments")
       .select("id, product_id, delta, previous_qty, new_qty, reason, note, created_at")
@@ -433,35 +497,44 @@ export const getDistributorInventory = createServerFn({ method: "GET" }).handler
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
+  if (productsError) throw new Error(productsError.message);
   if (invError) throw new Error(invError.message);
   if (adjError) throw new Error(adjError.message);
 
-  const rows = inventory ?? [];
-  const nameById = new Map(rows.map((r) => [r.product_id, r.products?.name ?? "Unknown"]));
+  const invByProduct = new Map((inventory ?? []).map((r) => [r.product_id, r]));
+  const products = allProducts ?? [];
+  const nameById = new Map(products.map((p) => [p.id, p.name]));
+
+  const items = products.map((p) => {
+    const row = invByProduct.get(p.id);
+    const stockQty = row?.stock_qty ?? 0;
+    const status = !row ? "not_stocked" : stockQty <= 0 ? "out" : stockQty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD ? "low" : "ok";
+    return {
+      id: row?.id ?? null,
+      productId: p.id,
+      name: p.name,
+      slug: p.slug,
+      unitLabel: p.unit_label,
+      priceCents: p.price_cents,
+      isActive: p.is_active,
+      category: p.categories?.name ?? null,
+      stockQty,
+      hasInventoryRow: !!row,
+      status,
+    };
+  });
 
   return {
-    items: rows.map((r) => ({
-      id: r.id,
-      productId: r.product_id,
-      name: r.products?.name ?? "Unknown product",
-      slug: r.products?.slug ?? "",
-      unitLabel: r.products?.unit_label ?? "",
-      priceCents: r.products?.price_cents ?? 0,
-      isActive: r.products?.is_active ?? false,
-      category: r.products?.categories?.name ?? null,
-      stockQty: r.stock_qty,
-      status:
-        r.stock_qty <= 0 ? "out" : r.stock_qty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD ? "low" : "ok",
-    })),
+    items,
     recentAdjustments: (adjustments ?? []).map((a) => ({
       ...a,
       productName: nameById.get(a.product_id) ?? "Deleted product",
     })),
     stats: {
-      totalItems: rows.length,
-      lowStock: rows.filter((r) => r.stock_qty > 0 && r.stock_qty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD).length,
-      outOfStock: rows.filter((r) => r.stock_qty <= 0).length,
-      totalUnits: rows.reduce((sum, r) => sum + r.stock_qty, 0),
+      totalItems: items.filter((i) => i.hasInventoryRow).length,
+      lowStock: items.filter((i) => i.status === "low").length,
+      outOfStock: items.filter((i) => i.status === "out").length,
+      totalUnits: items.reduce((sum, i) => sum + i.stockQty, 0),
     },
   };
 });
@@ -514,4 +587,305 @@ export const adjustDistributorInventory = createServerFn({ method: "POST" })
     if (logError) throw new Error(logError.message);
 
     return { ok: true, newQty: nextQty };
+  });
+
+// ---------- Stock transfer requests (local distributor <- supply hub) ----------
+
+// Auth gate for reviewing/fulfilling stock transfer requests: admin, or a
+// distributor flagged as a supply hub (distributors.can_supply). Returns the
+// caller's own distributor_id when they're a hub (null for admin) so the
+// caller can default "fulfilled by" to themselves.
+async function requireSupplier() {
+  const auth = getRequestHeader("authorization");
+  if (!auth?.startsWith("Bearer ")) throw new Error("Unauthorized");
+  const supabase = userScopedClient();
+  const { data: userData, error } = await supabase.auth.getUser(auth.slice(7));
+  if (error || !userData.user) throw new Error("Unauthorized");
+
+  const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" });
+  if (isAdmin) return { userId: userData.user.id, isAdmin: true, distributorId: null as string | null };
+
+  const { data: distributorId } = await supabase.rpc("get_my_distributor_id");
+  if (!distributorId) throw new Error("Supplier access required");
+
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: distributor } = await supabaseAdmin
+    .from("distributors")
+    .select("can_supply")
+    .eq("id", distributorId)
+    .maybeSingle();
+  if (!distributor?.can_supply) throw new Error("Supplier access required");
+
+  return { userId: userData.user.id, isAdmin: false, distributorId };
+}
+
+const requestStockSchema = z.object({
+  productId: z.string().uuid(),
+  requestedQty: z.number().int().min(1).max(1_000_000),
+  note: z.string().trim().max(300).nullable().optional(),
+});
+
+export const requestStockTransfer = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => requestStockSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { userId, distributorId } = await requireDistributor();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error } = await supabaseAdmin.from("stock_transfer_requests").insert({
+      requesting_distributor_id: distributorId,
+      product_id: data.productId,
+      requested_qty: data.requestedQty,
+      note: data.note || null,
+      requested_by: userId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getMyStockRequests = createServerFn({ method: "GET" }).handler(async () => {
+  const { distributorId } = await requireDistributor();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: requests, error } = await supabaseAdmin
+    .from("stock_transfer_requests")
+    .select(
+      "id, product_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label)",
+    )
+    .eq("requesting_distributor_id", distributorId)
+    .order("requested_at", { ascending: false })
+    .limit(100);
+  if (error) throw new Error(error.message);
+
+  const supplierIds = [
+    ...new Set((requests ?? []).map((r) => r.fulfilled_by_distributor_id).filter((id): id is string => !!id)),
+  ];
+  const { data: suppliers } = supplierIds.length
+    ? await supabaseAdmin.from("distributors").select("id, name").in("id", supplierIds)
+    : { data: [] };
+  const supplierNameById = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
+
+  return (requests ?? []).map((r) => ({
+    id: r.id,
+    productId: r.product_id,
+    productName: r.products?.name ?? "Unknown product",
+    unitLabel: r.products?.unit_label ?? "",
+    requestedQty: r.requested_qty,
+    approvedQty: r.approved_qty,
+    status: r.status,
+    note: r.note,
+    adminNote: r.admin_note,
+    fulfilledByName: r.fulfilled_by_distributor_id
+      ? (supplierNameById.get(r.fulfilled_by_distributor_id) ?? null)
+      : null,
+    requestedAt: r.requested_at,
+    reviewedAt: r.reviewed_at,
+  }));
+});
+
+// Every pending (and recent reviewed) request, system-wide — for a hub
+// distributor or admin to triage. Not scoped to "requests directed at me"
+// since requests don't pre-specify a supplier; whoever reviews picks who
+// fulfils it.
+export const getSupplierRequests = createServerFn({ method: "GET" }).handler(async () => {
+  await requireSupplier();
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: requests, error } = await supabaseAdmin
+    .from("stock_transfer_requests")
+    .select(
+      "id, requesting_distributor_id, product_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label)",
+    )
+    .order("requested_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+
+  const distributorIds = [
+    ...new Set(
+      (requests ?? []).flatMap((r) => [r.requesting_distributor_id, r.fulfilled_by_distributor_id]).filter(
+        (id): id is string => !!id,
+      ),
+    ),
+  ];
+  const { data: distributorRows } = distributorIds.length
+    ? await supabaseAdmin.from("distributors").select("id, name").in("id", distributorIds)
+    : { data: [] };
+  const nameById = new Map((distributorRows ?? []).map((d) => [d.id, d.name]));
+
+  return (requests ?? []).map((r) => ({
+    id: r.id,
+    requestingDistributorId: r.requesting_distributor_id,
+    requestingDistributorName: nameById.get(r.requesting_distributor_id) ?? "Unknown",
+    productId: r.product_id,
+    productName: r.products?.name ?? "Unknown product",
+    unitLabel: r.products?.unit_label ?? "",
+    requestedQty: r.requested_qty,
+    approvedQty: r.approved_qty,
+    status: r.status,
+    note: r.note,
+    adminNote: r.admin_note,
+    fulfilledByDistributorId: r.fulfilled_by_distributor_id,
+    fulfilledByName: r.fulfilled_by_distributor_id
+      ? (nameById.get(r.fulfilled_by_distributor_id) ?? null)
+      : null,
+    requestedAt: r.requested_at,
+    reviewedAt: r.reviewed_at,
+  }));
+});
+
+const reviewRequestSchema = z.object({
+  requestId: z.string().uuid(),
+  action: z.enum(["approve", "reject"]),
+  approvedQty: z.number().int().min(1).max(1_000_000).optional(),
+  fulfilledByDistributorId: z.string().uuid().optional(),
+  adminNote: z.string().trim().max(300).nullable().optional(),
+});
+
+export const reviewStockTransferRequest = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => reviewRequestSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { userId, isAdmin, distributorId } = await requireSupplier();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (data.action === "reject") {
+      const { error } = await supabaseAdmin
+        .from("stock_transfer_requests")
+        .update({
+          status: "rejected",
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+          admin_note: data.adminNote || null,
+        })
+        .eq("id", data.requestId)
+        .eq("status", "pending");
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+
+    // Approve: a hub distributor can only fulfil from their own stock; admin
+    // must say which distributor is supplying it (defaults are handled
+    // client-side, but never trust the client — re-check here too).
+    const fulfilledBy = isAdmin ? data.fulfilledByDistributorId : distributorId;
+    if (!fulfilledBy) throw new Error("Choose which distributor is supplying this stock.");
+    if (!isAdmin && fulfilledBy !== distributorId) {
+      throw new Error("You can only fulfil requests from your own stock.");
+    }
+
+    const { data: request, error: reqError } = await supabaseAdmin
+      .from("stock_transfer_requests")
+      .select("requested_qty, status")
+      .eq("id", data.requestId)
+      .single();
+    if (reqError || !request) throw new Error(reqError?.message ?? "Request not found");
+    if (request.status !== "pending") throw new Error("This request has already been reviewed.");
+
+    const approvedQty = data.approvedQty ?? request.requested_qty;
+
+    // Atomic, row-locked transfer — see the migration for the full logic.
+    const { error: rpcError } = await supabaseAdmin.rpc("approve_stock_transfer", {
+      _request_id: data.requestId,
+      _approved_qty: approvedQty,
+      _fulfilled_by_distributor_id: fulfilledBy,
+      _reviewed_by: userId,
+      _admin_note: data.adminNote || "",
+    });
+    if (rpcError) throw new Error(rpcError.message);
+
+    return { ok: true };
+  });
+
+// ---------- Picking-time substitution (item unavailable) ----------
+
+// Called by a distributor (scoped to their own order) or admin/staff when an
+// order item can't actually be fulfilled. Applies the customer's own
+// substitution_preference (captured at checkout) rather than asking the
+// picker to decide: replace with a chosen product, adjust the amount due
+// (this is COD — nothing has been charged yet, so "refund" means reducing
+// what's collected at the door, not a money-back transaction), or just
+// notify and leave it for a human to sort out via "contact me".
+const markUnavailableSchema = z.object({
+  orderItemId: z.string().uuid(),
+  replacementProductId: z.string().uuid().optional(),
+});
+
+export const markOrderItemUnavailable = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => markUnavailableSchema.parse(input))
+  .handler(async ({ data }) => {
+    const auth = getRequestHeader("authorization");
+    if (!auth?.startsWith("Bearer ")) throw new Error("Unauthorized");
+    const supabase = userScopedClient();
+    const { data: userData, error: authErr } = await supabase.auth.getUser(auth.slice(7));
+    if (authErr || !userData.user) throw new Error("Unauthorized");
+
+    const [{ data: isAdmin }, { data: isStaff }, { data: myDistributorId }] = await Promise.all([
+      supabase.rpc("has_role", { _user_id: userData.user.id, _role: "admin" }),
+      supabase.rpc("has_role", { _user_id: userData.user.id, _role: "staff" }),
+      supabase.rpc("get_my_distributor_id"),
+    ]);
+    if (!isAdmin && !isStaff && !myDistributorId) throw new Error("Not authorized to update this order.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: item, error: itemError } = await supabaseAdmin
+      .from("order_items")
+      .select(
+        "id, order_id, is_unavailable, unit_price_cents, ordered_qty, name_snapshot, orders(distributor_id, customer_id, substitution_preference, subtotal, tax, total, order_number)",
+      )
+      .eq("id", data.orderItemId)
+      .single();
+    if (itemError || !item) throw new Error(itemError?.message ?? "Order item not found");
+    const order = item.orders;
+    if (!order) throw new Error("Order not found");
+    if (!isAdmin && !isStaff && order.distributor_id !== myDistributorId) {
+      throw new Error("This order does not belong to your distributor.");
+    }
+    if (item.is_unavailable) throw new Error("This item is already marked unavailable.");
+
+    const patch: Database["public"]["Tables"]["order_items"]["Update"] = { is_unavailable: true };
+    if (data.replacementProductId) patch.replacement_product_id = data.replacementProductId;
+    const { error: updateError } = await supabaseAdmin
+      .from("order_items")
+      .update(patch)
+      .eq("id", data.orderItemId);
+    if (updateError) throw new Error(updateError.message);
+
+    // "refund_if_unavailable": drop this line's value from subtotal/total.
+    // Tax is intentionally left as originally computed rather than
+    // re-derived (that would mean replicating placeOrder's whole
+    // coupon/wallet-aware pricing formula for a single line item) — the
+    // resulting overstatement is small (a percentage of one line item).
+    if (order.substitution_preference === "refund_if_unavailable") {
+      const lineValue = item.unit_price_cents * item.ordered_qty;
+      const { error: orderUpdateError } = await supabaseAdmin
+        .from("orders")
+        .update({
+          subtotal: Math.max(order.subtotal - lineValue, 0),
+          total: Math.max(order.total - lineValue, 0),
+        })
+        .eq("id", item.order_id);
+      if (orderUpdateError) throw new Error(orderUpdateError.message);
+    }
+
+    if (order.customer_id) {
+      const isReplaced = order.substitution_preference === "replace_similar" && !!data.replacementProductId;
+      const isRefunded = order.substitution_preference === "refund_if_unavailable";
+      const title = isReplaced
+        ? "An item was substituted"
+        : isRefunded
+          ? "An item was unavailable — amount adjusted"
+          : "An item is unavailable — we'll contact you";
+      const body = isReplaced
+        ? `"${item.name_snapshot}" wasn't available, so we substituted it with a similar item in order ${order.order_number}.`
+        : isRefunded
+          ? `"${item.name_snapshot}" wasn't available. We've adjusted the amount due on order ${order.order_number}.`
+          : `"${item.name_snapshot}" wasn't available in order ${order.order_number}. We'll be in touch shortly.`;
+      await supabaseAdmin.from("notifications").insert({
+        user_id: order.customer_id,
+        order_id: item.order_id,
+        type: "item_unavailable",
+        title,
+        body,
+      });
+    }
+
+    return { ok: true };
   });

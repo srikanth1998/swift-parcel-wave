@@ -1,27 +1,48 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Loader2, Mail, Phone, Plus, UserMinus, UserPlus, X } from "lucide-react";
+import { Check, Loader2, Mail, Phone, Plus, UserMinus, UserPlus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import {
   addServiceArea,
   assignDistributorUser,
   getAdminDistributors,
   getAdminDistributorUsers,
+  getSupplierRequests,
   removeDistributorUser,
   removeServiceArea,
+  reviewStockTransferRequest,
   upsertAdminDistributor,
 } from "@/lib/distributors.functions";
 
 type AdminDistributor = Awaited<ReturnType<typeof getAdminDistributors>>[number];
 type AdminDistributorUser = Awaited<ReturnType<typeof getAdminDistributorUsers>>[number];
+type SupplierRequest = Awaited<ReturnType<typeof getSupplierRequests>>[number];
+type ReviewAction = "approve" | "reject";
 
 type DistributorForm = {
   id?: string;
@@ -29,6 +50,7 @@ type DistributorForm = {
   contactPhone: string;
   contactEmail: string;
   isActive: boolean;
+  canSupply: boolean;
 };
 
 const emptyDistributor: DistributorForm = {
@@ -36,6 +58,7 @@ const emptyDistributor: DistributorForm = {
   contactPhone: "",
   contactEmail: "",
   isActive: true,
+  canSupply: false,
 };
 
 const PINCODE_RE = /^\d{6}$/;
@@ -49,6 +72,12 @@ export const Route = createFileRoute("/_authenticated/admin/distributors")({
 function AdminDistributorsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<DistributorForm>(emptyDistributor);
+  const [reviewTarget, setReviewTarget] = useState<{
+    request: SupplierRequest;
+    action: ReviewAction;
+  } | null>(null);
+  const [approvedQty, setApprovedQty] = useState(1);
+  const [adminNote, setAdminNote] = useState("");
   // Avoid firing the badge-bump animation on first paint — only later
   // (real) state changes should replay it.
   const badgeMotionRef = useRef(false);
@@ -70,6 +99,19 @@ function AdminDistributorsPage() {
     queryFn: () => getAdminDistributorUsers(),
   });
 
+  const {
+    data: supplierRequests = [],
+    isLoading: requestsLoading,
+    error: requestsError,
+  } = useQuery({
+    queryKey: ["supplier-requests"],
+    queryFn: () => getSupplierRequests(),
+  });
+
+  // Exactly one hub today, but derived from the flag (not hardcoded by name)
+  // so a second hub keeps working without a code change here.
+  const hubDistributor = distributors.find((d) => d.can_supply);
+
   const upsertMutation = useMutation({
     mutationFn: (input: DistributorForm) =>
       upsertAdminDistributor({
@@ -79,6 +121,7 @@ function AdminDistributorsPage() {
           contactPhone: input.contactPhone || null,
           contactEmail: input.contactEmail || null,
           isActive: input.isActive,
+          canSupply: input.canSupply,
         },
       }),
     onSuccess: async () => {
@@ -96,6 +139,7 @@ function AdminDistributorsPage() {
       contactPhone: string | null;
       contactEmail: string | null;
       isActive: boolean;
+      canSupply: boolean;
     }) =>
       upsertAdminDistributor({
         data: {
@@ -104,6 +148,7 @@ function AdminDistributorsPage() {
           contactPhone: input.contactPhone,
           contactEmail: input.contactEmail,
           isActive: input.isActive,
+          canSupply: input.canSupply,
         },
       }),
     onSuccess: async () => {
@@ -146,6 +191,38 @@ function AdminDistributorsPage() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not remove operator"),
   });
+
+  const reviewMutation = useMutation({
+    mutationFn: (input: {
+      requestId: string;
+      action: ReviewAction;
+      approvedQty?: number;
+      fulfilledByDistributorId?: string;
+      adminNote: string;
+    }) =>
+      reviewStockTransferRequest({
+        data: {
+          requestId: input.requestId,
+          action: input.action,
+          approvedQty: input.action === "approve" ? input.approvedQty : undefined,
+          fulfilledByDistributorId: input.action === "approve" ? input.fulfilledByDistributorId : undefined,
+          adminNote: input.adminNote || null,
+        },
+      }),
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["supplier-requests"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-distributors"] });
+      setReviewTarget(null);
+      toast.success(variables.action === "approve" ? "Request approved" : "Request rejected");
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Could not review request"),
+  });
+
+  function openReview(request: SupplierRequest, action: ReviewAction) {
+    setApprovedQty(request.requestedQty);
+    setAdminNote("");
+    setReviewTarget({ request, action });
+  }
 
   return (
     <AdminPageFrame
@@ -217,6 +294,13 @@ function AdminDistributorsPage() {
                 />
                 Active
               </label>
+              <label className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+                <Switch
+                  checked={form.canSupply}
+                  onCheckedChange={(canSupply) => setForm((current) => ({ ...current, canSupply }))}
+                />
+                Can supply other distributors
+              </label>
               <Button type="submit" disabled={upsertMutation.isPending}>
                 {upsertMutation.isPending && <Loader2 className="animate-spin" />}
                 {upsertMutation.isPending ? "Saving..." : "Save distributor"}
@@ -249,6 +333,7 @@ function AdminDistributorsPage() {
                         contactPhone: distributor.contact_phone ?? "",
                         contactEmail: distributor.contact_email ?? "",
                         isActive: distributor.is_active,
+                        canSupply: distributor.can_supply,
                       })
                     }
                     onToggleActive={(isActive) =>
@@ -258,6 +343,7 @@ function AdminDistributorsPage() {
                         contactPhone: distributor.contact_phone,
                         contactEmail: distributor.contact_email,
                         isActive,
+                        canSupply: distributor.can_supply,
                       })
                     }
                     toggleActivePending={
@@ -288,6 +374,148 @@ function AdminDistributorsPage() {
           </section>
         </div>
       )}
+
+      <section className="animate-in fade-in slide-in-from-bottom-1 mt-6 overflow-hidden rounded-md border border-border bg-card shadow-sm duration-300 ease-out fill-mode-both">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="font-display text-xl font-semibold">Pending stock requests</h2>
+          <p className="text-sm text-muted-foreground">
+            Review and fulfil stock transfer requests from any distributor.
+          </p>
+        </div>
+        {requestsError ? (
+          <div className="p-4 text-sm text-destructive">
+            {requestsError instanceof Error ? requestsError.message : "Requests could not load."}
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Distributor</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Requested</TableHead>
+                <TableHead>Note</TableHead>
+                <TableHead>Requested at</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {requestsLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : supplierRequests.filter((r) => r.status === "pending").length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                    No pending requests.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                supplierRequests
+                  .filter((r) => r.status === "pending")
+                  .map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">{request.requestingDistributorName}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{request.productName}</div>
+                        <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
+                      </TableCell>
+                      <TableCell className="text-right">{request.requestedQty}</TableCell>
+                      <TableCell className="max-w-56 truncate text-sm text-muted-foreground">
+                        {request.note || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {format(new Date(request.requestedAt), "MMM d, h:mm a")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openReview(request, "reject")}>
+                            <X className="h-3.5 w-3.5" />
+                            Reject
+                          </Button>
+                          <Button size="sm" onClick={() => openReview(request, "approve")}>
+                            <Check className="h-3.5 w-3.5" />
+                            Approve
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </section>
+
+      <Dialog open={reviewTarget !== null} onOpenChange={(open) => !open && setReviewTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{reviewTarget?.action === "approve" ? "Approve request" : "Reject request"}</DialogTitle>
+            <DialogDescription>
+              {reviewTarget
+                ? `${reviewTarget.request.requestingDistributorName} requested ${reviewTarget.request.requestedQty} ${reviewTarget.request.unitLabel} of ${reviewTarget.request.productName}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!reviewTarget) return;
+              reviewMutation.mutate({
+                requestId: reviewTarget.request.id,
+                action: reviewTarget.action,
+                approvedQty: reviewTarget.action === "approve" ? approvedQty : undefined,
+                fulfilledByDistributorId: hubDistributor?.id,
+                adminNote,
+              });
+            }}
+          >
+            {reviewTarget?.action === "approve" && (
+              <>
+                <Field label="Fulfilled by">
+                  <Input value={hubDistributor?.name ?? "No supply hub configured"} disabled readOnly />
+                </Field>
+                <Field label="Quantity to send">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={approvedQty}
+                    onChange={(event) => setApprovedQty(Number(event.target.value))}
+                    required
+                  />
+                </Field>
+              </>
+            )}
+            <Field label="Note (optional)">
+              <Input
+                value={adminNote}
+                onChange={(event) => setAdminNote(event.target.value)}
+                maxLength={300}
+                placeholder={
+                  reviewTarget?.action === "approve"
+                    ? "e.g. Sending partial quantity, rest next week"
+                    : "e.g. Out of stock right now"
+                }
+              />
+            </Field>
+            <DialogFooter>
+              <Button
+                type="submit"
+                disabled={
+                  reviewMutation.isPending ||
+                  (reviewTarget?.action === "approve" &&
+                    (!approvedQty || approvedQty < 1 || !hubDistributor))
+                }
+              >
+                {reviewMutation.isPending && <Loader2 className="animate-spin" />}
+                {reviewTarget?.action === "approve" ? "Approve request" : "Reject request"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminPageFrame>
   );
 }
@@ -344,6 +572,11 @@ function DistributorCard({
             >
               {distributor.is_active ? "Active" : "Inactive"}
             </span>
+            {distributor.can_supply && (
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
+                Hub
+              </Badge>
+            )}
           </div>
           <div className="mt-1 space-y-0.5 text-sm text-muted-foreground">
             {distributor.contact_phone && (
