@@ -169,8 +169,8 @@ function AdminProductsPage() {
           {error instanceof Error ? error.message : "Catalog could not load."}
         </div>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-          <section className="space-y-4">
+        <div className="grid items-start gap-6 xl:h-[calc(100dvh-15.5rem)] xl:min-h-[46rem] xl:grid-cols-[0.85fr_1.15fr] xl:overflow-hidden">
+          <section className="space-y-4 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable]">
             <div className="rounded-md border border-border bg-card p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display text-xl font-semibold">
@@ -437,8 +437,8 @@ function AdminProductsPage() {
             </div>
           </section>
 
-          <section className="space-y-4">
-            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
+          <section className="space-y-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:space-y-0">
+            <div className="shrink-0 rounded-md border border-border bg-card p-4 shadow-sm">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -450,148 +450,154 @@ function AdminProductsPage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Stock</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
+            <div
+              className="space-y-4 outline-none xl:mt-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable] xl:focus-visible:ring-2 xl:focus-visible:ring-inset xl:focus-visible:ring-ring"
+              tabIndex={0}
+              aria-label="Scrollable products and categories"
+            >
+              <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        Loading...
-                      </TableCell>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ) : products.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
-                        <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
-                          No products found.
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-xs text-muted-foreground">{product.slug}</div>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                          Loading...
                         </TableCell>
-                        <TableCell>{product.categories?.name ?? "None"}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCents(product.price_cents)}
-                        </TableCell>
-                        <TableCell className="text-right">{product.stock_qty}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            <span
-                              key={product.is_active ? "active" : "hidden"}
-                              className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${
-                                product.is_active
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-gray-200 bg-gray-50 text-gray-600"
-                              }`}
-                            >
-                              {product.is_active ? "Active" : "Hidden"}
-                            </span>
-                            {product.is_featured && (
-                              <span
-                                className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700`}
-                              >
-                                Featured
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {product.is_active && (
-                              <Button asChild variant="outline" size="sm">
-                                <Link to="/product/$slug" params={{ slug: product.slug }}>
-                                  View
-                                </Link>
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setProductForm({
-                                  id: product.id,
-                                  name: product.name,
-                                  slug: product.slug,
-                                  description: product.description ?? "",
-                                  categoryId: product.category_id ?? "__none",
-                                  priceRupees: product.price_rupees,
-                                  mrpRupees: product.mrp_rupees ?? 0,
-                                  brand: product.brand ?? "",
-                                  unitLabel: product.unit_label,
-                                  imageUrl: product.image_url ?? "",
-                                  stockQty: product.stock_qty,
-                                  isActive: product.is_active,
-                                  isFeatured: product.is_featured,
-                                  tags: (product.tags ?? []).join(", "),
-                                })
-                              }
-                            >
-                              <Edit />
-                              Edit
-                            </Button>
+                      </TableRow>
+                    ) : products.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
+                            No products found.
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ) : (
+                      products.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-xs text-muted-foreground">{product.slug}</div>
+                          </TableCell>
+                          <TableCell>{product.categories?.name ?? "None"}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCents(product.price_cents)}
+                          </TableCell>
+                          <TableCell className="text-right">{product.stock_qty}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              <span
+                                key={product.is_active ? "active" : "hidden"}
+                                className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                                  product.is_active
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-gray-200 bg-gray-50 text-gray-600"
+                                }`}
+                              >
+                                {product.is_active ? "Active" : "Hidden"}
+                              </span>
+                              {product.is_featured && (
+                                <span
+                                  className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700`}
+                                >
+                                  Featured
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {product.is_active && (
+                                <Button asChild variant="outline" size="sm">
+                                  <Link to="/product/$slug" params={{ slug: product.slug }}>
+                                    View
+                                  </Link>
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setProductForm({
+                                    id: product.id,
+                                    name: product.name,
+                                    slug: product.slug,
+                                    description: product.description ?? "",
+                                    categoryId: product.category_id ?? "__none",
+                                    priceRupees: product.price_rupees,
+                                    mrpRupees: product.mrp_rupees ?? 0,
+                                    brand: product.brand ?? "",
+                                    unitLabel: product.unit_label,
+                                    imageUrl: product.image_url ?? "",
+                                    stockQty: product.stock_qty,
+                                    isActive: product.is_active,
+                                    isFeatured: product.is_featured,
+                                    tags: (product.tags ?? []).join(", "),
+                                  })
+                                }
+                              >
+                                <Edit />
+                                Edit
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-            <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">Sort</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data?.categories ?? []).map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell>{category.slug}</TableCell>
-                      <TableCell className="text-right">{category.sort_order}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCategoryForm({
-                              id: category.id,
-                              name: category.name,
-                              slug: category.slug,
-                              imageUrl: category.image_url ?? "",
-                              sortOrder: category.sort_order,
-                              tags: (category.tags ?? []).join(", "),
-                            })
-                          }
-                        >
-                          <Edit />
-                          Edit
-                        </Button>
-                      </TableCell>
+              <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Slug</TableHead>
+                      <TableHead className="text-right">Sort</TableHead>
+                      <TableHead />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.categories ?? []).map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell>{category.slug}</TableCell>
+                        <TableCell className="text-right">{category.sort_order}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setCategoryForm({
+                                id: category.id,
+                                name: category.name,
+                                slug: category.slug,
+                                imageUrl: category.image_url ?? "",
+                                sortOrder: category.sort_order,
+                                tags: (category.tags ?? []).join(", "),
+                              })
+                            }
+                          >
+                            <Edit />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </section>
         </div>

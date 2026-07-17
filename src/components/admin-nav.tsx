@@ -34,7 +34,9 @@ export function AdminNav() {
       <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 xl:sticky xl:top-28 xl:block xl:w-56 xl:space-y-1 xl:px-3">
         {items.map((item) => {
           const active =
-            item.to === "/admin" ? pathname === "/admin" : pathname.startsWith(item.to);
+            item.to === "/admin"
+              ? pathname === "/admin"
+              : pathname === item.to || pathname.startsWith(`${item.to}/`);
           const Icon = item.icon;
           return (
             <Link
