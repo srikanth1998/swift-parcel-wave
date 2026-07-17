@@ -1,5 +1,5 @@
 import { ArrowRight, Loader2, PackagePlus, TriangleAlert } from "lucide-react";
-import { forwardRef, useId, useState } from "react";
+import { forwardRef, memo, useId, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ type ValidationError = {
 };
 
 export type StockAdjustmentFormProps = {
-  products: InventoryProduct[];
+  selectedProduct?: InventoryProduct;
   value: AdjustmentFormValue;
   onChange: (value: AdjustmentFormValue) => void;
   onSubmit: (value: AdjustmentSubmission) => void;
@@ -43,10 +43,10 @@ export type StockAdjustmentFormProps = {
   submissionError?: string | null;
 };
 
-export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormProps>(
-  function StockAdjustmentForm(
+export const StockAdjustmentForm = memo(
+  forwardRef<HTMLElement, StockAdjustmentFormProps>(function StockAdjustmentForm(
     {
-      products,
+      selectedProduct,
       value,
       onChange,
       onSubmit,
@@ -58,17 +58,18 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
   ) {
     const id = useId();
     const [validationError, setValidationError] = useState<ValidationError | null>(null);
-    const selectedProduct = products.find((product) => product.id === value.productId);
     const parsedAmount = value.amount.trim() === "" ? Number.NaN : Number(value.amount);
     const canPreview =
       selectedProduct &&
       Number.isInteger(parsedAmount) &&
       (value.mode === "delta" || parsedAmount >= 0);
-    const nextQuantity = canPreview
+    const calculatedQuantity = canPreview
       ? value.mode === "set"
-        ? Math.max(parsedAmount, 0)
-        : Math.max(selectedProduct.stockQty + parsedAmount, 0)
+        ? parsedAmount
+        : selectedProduct.stockQty + parsedAmount
       : null;
+    const wouldBeNegative = calculatedQuantity !== null && calculatedQuantity < 0;
+    const nextQuantity = wouldBeNegative ? null : calculatedQuantity;
 
     function update<Key extends keyof AdjustmentFormValue>(
       key: Key,
@@ -86,7 +87,7 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
       event.preventDefault();
-      if (!value.productId) {
+      if (!value.productId || !selectedProduct) {
         setValidationError({ field: "product", message: "Choose a product to adjust." });
         return;
       }
@@ -104,6 +105,10 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
       }
       if (value.mode === "delta" && parsedAmount === 0) {
         setValidationError({ field: "amount", message: "Enter a positive or negative change." });
+        return;
+      }
+      if (value.mode === "delta" && selectedProduct.stockQty + parsedAmount < 0) {
+        setValidationError({ field: "amount", message: "Stock cannot go below zero." });
         return;
       }
 
@@ -136,33 +141,44 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
         </div>
 
         <form className="space-y-4 p-4" onSubmit={handleSubmit} aria-busy={isSubmitting} noValidate>
-          <Field
-            label="Product"
-            htmlFor={`${id}-product`}
-            error={productError}
-            errorId={`${id}-product-error`}
-          >
-            <Select
-              value={value.productId}
-              onValueChange={(productId) => update("productId", productId)}
-              disabled={disabled || isSubmitting || products.length === 0}
+          <div>
+            <p id={`${id}-product-label`} className="text-sm font-medium">
+              Product
+            </p>
+            <div
+              id={`${id}-product`}
+              className={cn(
+                "mt-1.5 rounded-md border px-3 py-2.5 text-sm",
+                selectedProduct
+                  ? "border-border bg-muted/40"
+                  : "border-dashed text-muted-foreground",
+                productError && "border-destructive",
+              )}
+              role="status"
+              aria-labelledby={`${id}-product-label`}
+              aria-describedby={productError ? `${id}-product-error` : undefined}
             >
-              <SelectTrigger
-                id={`${id}-product`}
-                aria-invalid={Boolean(productError)}
-                aria-describedby={productError ? `${id}-product-error` : undefined}
+              {selectedProduct ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 truncate font-medium">{selectedProduct.name}</span>
+                  <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                    {selectedProduct.stockQty.toLocaleString()} on hand
+                  </span>
+                </div>
+              ) : (
+                "Choose Adjust next to a product to begin."
+              )}
+            </div>
+            {productError ? (
+              <p
+                id={`${id}-product-error`}
+                className="mt-1.5 text-xs font-medium text-destructive"
+                role="alert"
               >
-                <SelectValue placeholder="Select a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} · {product.stockQty.toLocaleString()} on hand
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+                {productError}
+              </p>
+            ) : null}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Adjustment type" htmlFor={`${id}-mode`}>
@@ -225,12 +241,10 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
                   {nextQuantity === null ? "—" : nextQuantity.toLocaleString()}
                 </span>
               </div>
-              {canPreview &&
-              value.mode === "delta" &&
-              selectedProduct.stockQty + parsedAmount < 0 ? (
+              {wouldBeNegative ? (
                 <p className="mt-1 flex items-center gap-1 text-xs text-amber-700">
                   <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                  Stock is capped at zero; it cannot become negative.
+                  This change would make stock negative.
                 </p>
               ) : null}
             </div>
@@ -291,7 +305,7 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
           <Button
             type="submit"
             className="w-full sm:w-auto"
-            disabled={disabled || isSubmitting || products.length === 0}
+            disabled={disabled || isSubmitting || !selectedProduct}
           >
             {isSubmitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             {isSubmitting ? "Saving adjustment…" : "Apply adjustment"}
@@ -299,7 +313,7 @@ export const StockAdjustmentForm = forwardRef<HTMLElement, StockAdjustmentFormPr
         </form>
       </section>
     );
-  },
+  }),
 );
 
 function Field({

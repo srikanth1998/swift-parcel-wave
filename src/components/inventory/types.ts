@@ -31,6 +31,12 @@ export type InventoryStats = {
   totalUnits: number;
 };
 
+export type AdminInventoryData = {
+  products: InventoryProduct[];
+  recentAdjustments: InventoryAdjustment[];
+  stats: InventoryStats;
+};
+
 export type InventoryFilterStatus = "all" | InventoryStatus;
 export type InventorySort = "stock-asc" | "stock-desc" | "name-asc" | "name-desc";
 

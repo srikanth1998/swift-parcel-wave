@@ -1,5 +1,6 @@
 import { AlertTriangle, Boxes, Layers3, PackageX } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { memo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { InventoryStats } from "./types";
@@ -46,7 +47,10 @@ const METRICS: Array<{
   },
 ];
 
-export function InventoryMetrics({ stats, isLoading = false }: InventoryMetricsProps) {
+export const InventoryMetrics = memo(function InventoryMetrics({
+  stats,
+  isLoading = false,
+}: InventoryMetricsProps) {
   return (
     <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Inventory summary">
       {METRICS.map(({ key, label, helper, icon: Icon, tone }) => (
@@ -71,4 +75,4 @@ export function InventoryMetrics({ stats, isLoading = false }: InventoryMetricsP
       ))}
     </dl>
   );
-}
+});

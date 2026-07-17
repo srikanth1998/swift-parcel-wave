@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import type { InventoryStatus } from "./types";
 
@@ -29,7 +30,7 @@ export type InventoryStatusBadgeProps = {
   className?: string;
 };
 
-export function InventoryStatusBadge({
+export const InventoryStatusBadge = memo(function InventoryStatusBadge({
   status,
   quantity,
   animate = false,
@@ -52,4 +53,4 @@ export function InventoryStatusBadge({
         : config.label}
     </span>
   );
-}
+});

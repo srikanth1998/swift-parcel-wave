@@ -36,24 +36,31 @@ export const getAdminInventory = createServerFn({ method: "GET" }).handler(async
   await requireRole(["staff", "admin"]);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  const [{ data: products, error: productsError }, { data: adjustments, error: adjustmentsError }] =
-    await Promise.all([
-      supabaseAdmin
-        .from("products")
-        .select("id, name, slug, stock_qty, unit_label, is_active, price_cents, categories(name)")
-        .order("stock_qty", { ascending: true })
-        .limit(500),
-      supabaseAdmin
-        .from("inventory_adjustments")
-        .select("id, product_id, delta, previous_qty, new_qty, reason, note, created_at")
-        .order("created_at", { ascending: false })
-        .limit(50),
-    ]);
+  const [
+    { data: products, error: productsError },
+    { data: adjustments, error: adjustmentsError },
+    { data: statsRows, error: statsError },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("products")
+      .select("id, name, slug, stock_qty, unit_label, is_active, price_cents, categories(name)")
+      .order("stock_qty", { ascending: true })
+      .limit(500),
+    supabaseAdmin
+      .from("inventory_adjustments")
+      .select(
+        "id, product_id, delta, previous_qty, new_qty, reason, note, created_at, products(name)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabaseAdmin.rpc("get_admin_inventory_stats"),
+  ]);
   if (productsError) throw new Error(productsError.message);
   if (adjustmentsError) throw new Error(adjustmentsError.message);
+  if (statsError) throw new Error(statsError.message);
 
   const productRows = products ?? [];
-  const nameById = new Map(productRows.map((product) => [product.id, product.name]));
+  const stats = statsRows?.[0];
 
   return {
     products: productRows.map((product) => ({
@@ -73,15 +80,21 @@ export const getAdminInventory = createServerFn({ method: "GET" }).handler(async
             : ("ok" as const),
     })),
     recentAdjustments: (adjustments ?? []).map((adjustment) => ({
-      ...adjustment,
-      productName: nameById.get(adjustment.product_id) ?? "Deleted product",
+      id: adjustment.id,
+      product_id: adjustment.product_id,
+      delta: adjustment.delta,
+      previous_qty: adjustment.previous_qty,
+      new_qty: adjustment.new_qty,
+      reason: adjustment.reason,
+      note: adjustment.note,
+      created_at: adjustment.created_at,
+      productName: adjustment.products?.name ?? "Deleted product",
     })),
     stats: {
-      totalProducts: productRows.length,
-      lowStock: productRows.filter((p) => p.stock_qty > 0 && p.stock_qty <= LOW_STOCK_THRESHOLD)
-        .length,
-      outOfStock: productRows.filter((p) => p.stock_qty <= 0).length,
-      totalUnits: productRows.reduce((sum, p) => sum + p.stock_qty, 0),
+      totalProducts: Number(stats?.total_products ?? 0),
+      lowStock: Number(stats?.low_stock ?? 0),
+      outOfStock: Number(stats?.out_of_stock ?? 0),
+      totalUnits: Number(stats?.total_units ?? 0),
     },
   };
 });
@@ -96,40 +109,28 @@ const adjustSchema = z.object({
 });
 
 export const adjustInventory = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => adjustSchema.parse(input))
+  .validator((input: unknown) => adjustSchema.parse(input))
   .handler(async ({ data }) => {
     const { userId } = await requireRole(["staff", "admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: product, error: productError } = await supabaseAdmin
-      .from("products")
-      .select("id, stock_qty")
-      .eq("id", data.productId)
-      .single();
-    if (productError || !product) throw new Error(productError?.message ?? "Product not found");
-
-    const previousQty = product.stock_qty;
-    const nextQty = data.mode === "set" ? data.amount : previousQty + data.amount;
-    if (nextQty < 0) throw new Error("Stock cannot go below zero.");
-    const delta = nextQty - previousQty;
-    if (delta === 0) throw new Error("No change to apply.");
-
-    const { error: updateError } = await supabaseAdmin
-      .from("products")
-      .update({ stock_qty: nextQty })
-      .eq("id", data.productId);
-    if (updateError) throw new Error(updateError.message);
-
-    const { error: logError } = await supabaseAdmin.from("inventory_adjustments").insert({
-      product_id: data.productId,
-      delta,
-      previous_qty: previousQty,
-      new_qty: nextQty,
-      reason: data.reason,
-      note: data.note || null,
-      created_by: userId,
+    const { data: rows, error } = await supabaseAdmin.rpc("adjust_inventory_atomic", {
+      _product_id: data.productId,
+      _mode: data.mode,
+      _amount: data.amount,
+      _reason: data.reason,
+      _note: data.note ?? null,
+      _created_by: userId,
     });
-    if (logError) throw new Error(logError.message);
+    if (error) throw new Error(error.message);
 
-    return { ok: true, newQty: nextQty };
+    const result = rows?.[0];
+    if (!result) throw new Error("Inventory adjustment did not return a result.");
+
+    return {
+      ok: true as const,
+      previousQty: result.previous_qty,
+      newQty: result.new_qty,
+      delta: result.delta,
+    };
   });

@@ -1,5 +1,6 @@
 import { format, isValid } from "date-fns";
 import { ArrowDown, ArrowUp, Clock3, Minus } from "lucide-react";
+import { memo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { InventoryAdjustment } from "./types";
@@ -9,7 +10,10 @@ export type InventoryActivityProps = {
   isLoading?: boolean;
 };
 
-export function InventoryActivity({ adjustments, isLoading = false }: InventoryActivityProps) {
+export const InventoryActivity = memo(function InventoryActivity({
+  adjustments,
+  isLoading = false,
+}: InventoryActivityProps) {
   return (
     <section
       className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
@@ -102,7 +106,7 @@ export function InventoryActivity({ adjustments, isLoading = false }: InventoryA
       )}
     </section>
   );
-}
+});
 
 function ActivitySkeleton() {
   return (

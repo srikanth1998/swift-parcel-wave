@@ -1,4 +1,5 @@
 import { PackageSearch } from "lucide-react";
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -11,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCents } from "@/lib/format";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { InventoryEmptyState } from "./inventory-states";
 import { InventoryStatusBadge } from "./inventory-status-badge";
@@ -25,7 +27,7 @@ export type InventoryListProps = {
   onClearFilters?: () => void;
 };
 
-export function InventoryList({
+export const InventoryList = memo(function InventoryList({
   products,
   isLoading = false,
   isFiltered = false,
@@ -33,6 +35,8 @@ export function InventoryList({
   onAdjust,
   onClearFilters,
 }: InventoryListProps) {
+  const isMobile = useIsMobile();
+
   return (
     <section
       className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
@@ -53,95 +57,119 @@ export function InventoryList({
         <InventoryListSkeleton />
       ) : products.length === 0 ? (
         <InventoryEmptyState filtered={isFiltered} onClearFilters={onClearFilters} />
+      ) : isMobile ? (
+        <div className="divide-y divide-border">
+          {products.map((product) => (
+            <MobileProductCard
+              key={product.id}
+              product={product}
+              selected={product.id === selectedProductId}
+              onAdjust={onAdjust}
+            />
+          ))}
+        </div>
       ) : (
-        <>
-          <div className="hidden md:block">
-            <Table>
-              <TableCaption className="sr-only">
-                Inventory products with current price, category, stock status, and adjustment action
-              </TableCaption>
-              <TableHeader>
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="px-4">Product</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Stock status</TableHead>
-                  <TableHead className="w-24 pr-4 text-right">
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => {
-                  const selected = product.id === selectedProductId;
-                  return (
-                    <TableRow key={product.id} data-state={selected ? "selected" : undefined}>
-                      <TableCell className="px-4 py-3">
-                        <ProductIdentity product={product} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {product.category ?? "Uncategorized"}
-                      </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {formatCents(product.priceCents)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <InventoryStatusBadge status={product.status} quantity={product.stockQty} />
-                      </TableCell>
-                      <TableCell className="pr-4 text-right">
-                        <Button
-                          type="button"
-                          variant={selected ? "secondary" : "outline"}
-                          size="sm"
-                          onClick={() => onAdjust(product)}
-                          aria-label={`Adjust stock for ${product.name}`}
-                        >
-                          {selected ? "Selected" : "Adjust"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="divide-y divide-border md:hidden">
-            {products.map((product) => {
-              const selected = product.id === selectedProductId;
-              return (
-                <article
+        <div>
+          <Table>
+            <TableCaption className="sr-only">
+              Inventory products with current price, category, stock status, and adjustment action
+            </TableCaption>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="px-4">Product</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Stock status</TableHead>
+                <TableHead className="w-24 pr-4 text-right">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((product) => (
+                <ProductTableRow
                   key={product.id}
-                  className={cn("p-4", selected && "bg-primary/5")}
-                  aria-label={product.name}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <ProductIdentity product={product} />
-                    <div className="shrink-0 text-right text-sm font-semibold tabular-nums">
-                      {formatCents(product.priceCents)}
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <InventoryStatusBadge status={product.status} quantity={product.stockQty} />
-                    <Button
-                      type="button"
-                      variant={selected ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => onAdjust(product)}
-                      aria-label={`Adjust stock for ${product.name}`}
-                    >
-                      {selected ? "Selected" : "Adjust stock"}
-                    </Button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </>
+                  product={product}
+                  selected={product.id === selectedProductId}
+                  onAdjust={onAdjust}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </section>
   );
-}
+});
+
+const ProductTableRow = memo(function ProductTableRow({
+  product,
+  selected,
+  onAdjust,
+}: {
+  product: InventoryProduct;
+  selected: boolean;
+  onAdjust: (product: InventoryProduct) => void;
+}) {
+  return (
+    <TableRow data-state={selected ? "selected" : undefined}>
+      <TableCell className="px-4 py-3">
+        <ProductIdentity product={product} />
+      </TableCell>
+      <TableCell className="text-muted-foreground">{product.category ?? "Uncategorized"}</TableCell>
+      <TableCell className="text-right font-medium tabular-nums">
+        {formatCents(product.priceCents)}
+      </TableCell>
+      <TableCell className="text-right">
+        <InventoryStatusBadge status={product.status} quantity={product.stockQty} />
+      </TableCell>
+      <TableCell className="pr-4 text-right">
+        <Button
+          type="button"
+          variant={selected ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => onAdjust(product)}
+          aria-label={`Adjust stock for ${product.name}`}
+        >
+          {selected ? "Selected" : "Adjust"}
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+const MobileProductCard = memo(function MobileProductCard({
+  product,
+  selected,
+  onAdjust,
+}: {
+  product: InventoryProduct;
+  selected: boolean;
+  onAdjust: (product: InventoryProduct) => void;
+}) {
+  return (
+    <article className={cn("p-4", selected && "bg-primary/5")} aria-label={product.name}>
+      <div className="flex items-start justify-between gap-3">
+        <ProductIdentity product={product} />
+        <div className="shrink-0 text-right text-sm font-semibold tabular-nums">
+          {formatCents(product.priceCents)}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <InventoryStatusBadge status={product.status} quantity={product.stockQty} />
+        <Button
+          type="button"
+          variant={selected ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => onAdjust(product)}
+          aria-label={`Adjust stock for ${product.name}`}
+        >
+          {selected ? "Selected" : "Adjust stock"}
+        </Button>
+      </div>
+    </article>
+  );
+});
 
 function ProductIdentity({ product }: { product: InventoryProduct }) {
   return (

@@ -4,16 +4,17 @@ The inventory route is the orchestration layer: it owns React Query, mutations, 
 
 ## Architecture
 
-| Component | Responsibility |
-| --- | --- |
-| `InventoryMetrics` | Summary KPIs with loading skeletons and semantic `dl` markup |
-| `InventoryToolbar` | Controlled search, status/category filters, sorting, reset, and result announcements |
-| `InventoryList` | Desktop table, mobile cards, loading skeletons, and filtered/unfiltered empty states |
-| `InventoryStatusBadge` | Consistent, text-backed stock status presentation |
-| `StockAdjustmentForm` | Controlled adjustment workflow, validation, quantity preview, and pending/error states |
-| `InventoryActivity` | Keyboard-accessible audit history with positive/negative change semantics |
-| `InventoryErrorState` | Recoverable query error with retry action |
-| `types.ts` | Shared product, adjustment, filter, form, and submission contracts |
+| Component              | Responsibility                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------- |
+| `InventoryMetrics`     | Summary KPIs with loading skeletons and semantic `dl` markup                           |
+| `InventoryToolbar`     | Controlled search, status/category filters, sorting, reset, and result announcements   |
+| `InventoryList`        | Runtime-selected desktop table or mobile cards, loading skeletons, and empty states    |
+| `InventoryPagination`  | Accessible bounded-DOM pagination for large result sets                                |
+| `InventoryStatusBadge` | Consistent, text-backed stock status presentation                                      |
+| `StockAdjustmentForm`  | Controlled adjustment workflow, validation, quantity preview, and pending/error states |
+| `InventoryActivity`    | Keyboard-accessible audit history with positive/negative change semantics              |
+| `InventoryErrorState`  | Recoverable query error with retry action                                              |
+| `types.ts`             | Shared product, adjustment, filter, form, and submission contracts                     |
 
 ## Component APIs
 
@@ -38,13 +39,20 @@ type InventoryListProps = {
 };
 
 type StockAdjustmentFormProps = {
-  products: InventoryProduct[];
+  selectedProduct?: InventoryProduct;
   value: AdjustmentFormValue;
   onChange: (value: AdjustmentFormValue) => void;
   onSubmit: (value: AdjustmentSubmission) => void;
   isSubmitting?: boolean;
   disabled?: boolean;
   submissionError?: string | null;
+};
+
+type InventoryPaginationProps = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  onPageChange: (page: number) => void;
 };
 ```
 
@@ -74,13 +82,26 @@ const [adjustment, setAdjustment] = useState<AdjustmentFormValue>(initialAdjustm
 />
 
 <StockAdjustmentForm
-  products={products}
+  selectedProduct={products.find((product) => product.id === adjustment.productId)}
   value={adjustment}
   onChange={setAdjustment}
   onSubmit={(submission) => mutation.mutate(submission)}
   isSubmitting={mutation.isPending}
 />
 ```
+
+## Performance design
+
+- Only one responsive list is mounted at a time, so mobile and desktop do not duplicate every product node.
+- Client pagination limits the active product DOM to 50 rows; filters and search still operate over the fetched working set.
+- Searchable product text is normalized once per data change instead of allocating and lowercasing multiple strings per keystroke.
+- The adjustment form receives one selected product instead of rendering the full catalog as select options.
+- Stable callbacks and memoized leaf components prevent filter typing from reformatting metrics and activity timestamps.
+- Inventory query data remains fresh for 30 seconds and cached for 10 minutes, reducing focus/mount refetch traffic.
+- Successful mutations patch the cache immediately, end pending UI without waiting for a refetch, then reconcile in the background.
+- Database metrics cover the full catalog, while stock changes use a row lock and one transaction for update plus audit insertion.
+
+For catalogs larger than the current 500-item working set, replace client filtering with cursor-based server pagination and indexed server search. Preserve the component APIs: the route should continue supplying one bounded page to `InventoryList`.
 
 ## Production practices
 
@@ -94,3 +115,5 @@ const [adjustment, setAdjustment] = useState<AdjustmentFormValue>(initialAdjustm
 - Move focus to the adjustment form when an action elsewhere on the page changes its context.
 - Respect `prefers-reduced-motion` for programmatic scrolling and existing animations.
 - Keep audit notes bounded and sanitize/validate them again at the server boundary.
+- Keep stock changes transactional; never separate the quantity update from its audit insert.
+- Profile before increasing page size. Prefer server cursors over rendering or retaining an unbounded catalog response.

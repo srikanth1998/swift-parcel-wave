@@ -912,6 +912,21 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_inventory_atomic: {
+        Args: {
+          _amount: number
+          _created_by: string
+          _mode: string
+          _note: string | null
+          _product_id: string
+          _reason: Database["public"]["Enums"]["inventory_reason_enum"]
+        }
+        Returns: {
+          delta: number
+          new_qty: number
+          previous_qty: number
+        }[]
+      }
       approve_stock_transfer: {
         Args: {
           _admin_note: string
@@ -924,6 +939,15 @@ export type Database = {
       }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      get_admin_inventory_stats: {
+        Args: never
+        Returns: {
+          low_stock: number
+          out_of_stock: number
+          total_products: number
+          total_units: number
+        }[]
+      }
       get_my_distributor_id: { Args: never; Returns: string }
       get_wallet_balance: { Args: { _user_id: string }; Returns: number }
       has_role: {
