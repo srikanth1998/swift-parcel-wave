@@ -1,348 +1,228 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { AlertTriangle, Boxes, Layers, Loader2, PackageX } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { InventoryActivity } from "@/components/inventory/inventory-activity";
+import { InventoryList } from "@/components/inventory/inventory-list";
+import { InventoryMetrics } from "@/components/inventory/inventory-metrics";
+import { InventoryErrorState } from "@/components/inventory/inventory-states";
+import { InventoryToolbar } from "@/components/inventory/inventory-toolbar";
+import { StockAdjustmentForm } from "@/components/inventory/stock-adjustment-form";
+import type {
+  AdjustmentFormValue,
+  AdjustmentSubmission,
+  InventoryFilters,
+  InventoryProduct,
+} from "@/components/inventory/types";
+import { usePrefersReducedMotion } from "@/hooks/use-reduced-motion";
 import { adjustInventory, getAdminInventory } from "@/lib/inventory.functions";
-import { formatCents } from "@/lib/format";
 
-type Mode = "set" | "delta";
-type Reason = "restock" | "correction" | "damage" | "return";
-
-const REASON_LABEL: Record<Reason, string> = {
-  restock: "Restock",
-  correction: "Correction",
-  damage: "Damage / loss",
-  return: "Customer return",
+const INITIAL_FILTERS: InventoryFilters = {
+  query: "",
+  status: "all",
+  category: null,
+  sort: "stock-asc",
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  ok: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  low: "border-amber-200 bg-amber-50 text-amber-700",
-  out: "border-red-200 bg-red-50 text-red-700",
+const INITIAL_ADJUSTMENT: AdjustmentFormValue = {
+  productId: "",
+  mode: "delta",
+  amount: "",
+  reason: "restock",
+  note: "",
 };
 
 export const Route = createFileRoute("/_authenticated/admin/inventory")({
-  head: () => ({ meta: [{ title: "Inventory - FEABazaar" }] }),
+  head: () => ({
+    meta: [
+      { title: "Inventory - FEABazaar" },
+      {
+        name: "description",
+        content: "Monitor product stock and record auditable inventory adjustments.",
+      },
+    ],
+  }),
   component: AdminInventoryPage,
 });
 
 function AdminInventoryPage() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [productId, setProductId] = useState("");
-  const [mode, setMode] = useState<Mode>("delta");
-  const [amount, setAmount] = useState(0);
-  const [reason, setReason] = useState<Reason>("restock");
-  const [note, setNote] = useState("");
-  // Status pills should only "bump" in response to a real change, not on the
-  // table's first paint (which would fire the animation on every visible row
-  // at once). This flips true after mount, so only later re-renders animate.
-  const badgeMotionRef = useRef(false);
-  useEffect(() => {
-    badgeMotionRef.current = true;
-  }, []);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const adjustmentFormRef = useRef<HTMLElement>(null);
+  const [filters, setFilters] = useState<InventoryFilters>(INITIAL_FILTERS);
+  const deferredQuery = useDeferredValue(filters.query);
+  const [adjustment, setAdjustment] = useState<AdjustmentFormValue>(INITIAL_ADJUSTMENT);
 
-  const { data, isLoading, error } = useQuery({
+  const inventoryQuery = useQuery({
     queryKey: ["admin-inventory"],
     queryFn: () => getAdminInventory(),
   });
 
-  const mutation = useMutation({
-    mutationFn: () =>
+  const adjustmentMutation = useMutation({
+    mutationFn: (submission: AdjustmentSubmission) =>
       adjustInventory({
-        data: { productId, mode, amount, reason, note: note || null },
+        data: {
+          productId: submission.productId,
+          mode: submission.mode,
+          amount: submission.amount,
+          reason: submission.reason,
+          note: submission.note.trim() || null,
+        },
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-inventory"] });
-      setAmount(0);
-      setNote("");
-      toast.success("Stock updated");
+      setAdjustment((current) => ({ ...current, amount: "", note: "" }));
+      toast.success("Stock updated", {
+        description: "The adjustment was saved to the inventory log.",
+      });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Adjustment failed"),
+    onError: (error) => {
+      toast.error("Adjustment failed", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    },
   });
 
-  const products = useMemo(() => {
-    const query = search.toLowerCase();
-    return (data?.products ?? []).filter((product) => {
-      if (!query) return true;
-      return [product.name, product.slug, product.category]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query));
-    });
-  }, [data?.products, search]);
+  const products = useMemo(
+    () => inventoryQuery.data?.products ?? [],
+    [inventoryQuery.data?.products],
+  );
+  const categories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          products
+            .map((product) => product.category)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ).sort((left, right) => left.localeCompare(right)),
+    [products],
+  );
 
-  const selectedProduct = data?.products.find((product) => product.id === productId);
+  const visibleProducts = useMemo(() => {
+    const query = deferredQuery.trim().toLocaleLowerCase();
+    const next = products.filter((product) => {
+      const matchesQuery =
+        !query ||
+        [product.name, product.slug, product.category, product.unitLabel]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => value.toLocaleLowerCase().includes(query));
+      const matchesStatus = filters.status === "all" || product.status === filters.status;
+      const matchesCategory = filters.category === null || product.category === filters.category;
+      return matchesQuery && matchesStatus && matchesCategory;
+    });
+
+    return [...next].sort((left, right) => {
+      switch (filters.sort) {
+        case "stock-desc":
+          return right.stockQty - left.stockQty || left.name.localeCompare(right.name);
+        case "name-asc":
+          return left.name.localeCompare(right.name);
+        case "name-desc":
+          return right.name.localeCompare(left.name);
+        case "stock-asc":
+          return left.stockQty - right.stockQty || left.name.localeCompare(right.name);
+      }
+    });
+  }, [deferredQuery, filters.category, filters.sort, filters.status, products]);
+
+  const isFiltered =
+    filters.query.trim().length > 0 || filters.status !== "all" || filters.category !== null;
+
+  function handleAdjustmentChange(value: AdjustmentFormValue) {
+    if (adjustmentMutation.error) adjustmentMutation.reset();
+    setAdjustment(value);
+  }
+
+  function handleAdjustProduct(product: InventoryProduct) {
+    adjustmentMutation.reset();
+    setAdjustment({
+      productId: product.id,
+      mode: "delta",
+      amount: "",
+      reason: "restock",
+      note: "",
+    });
+
+    window.requestAnimationFrame(() => {
+      adjustmentFormRef.current?.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      adjustmentFormRef.current?.focus({ preventScroll: true });
+    });
+  }
 
   return (
-    <AdminPageFrame title="Inventory" description="Track stock levels and log every adjustment.">
-      {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Inventory could not load."}
-        </div>
+    <AdminPageFrame
+      title="Inventory"
+      description="Monitor stock health, find products quickly, and keep every adjustment auditable."
+    >
+      {inventoryQuery.error && !inventoryQuery.data ? (
+        <InventoryErrorState
+          error={inventoryQuery.error}
+          onRetry={() => void inventoryQuery.refetch()}
+          isRetrying={inventoryQuery.isFetching}
+        />
       ) : (
-        <div className="space-y-6">
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Metric icon={Layers} label="Products" value={data?.stats.totalProducts ?? 0} />
-            <Metric icon={AlertTriangle} label="Low stock" value={data?.stats.lowStock ?? 0} />
-            <Metric icon={PackageX} label="Out of stock" value={data?.stats.outOfStock ?? 0} />
-            <Metric icon={Boxes} label="Units on hand" value={data?.stats.totalUnits ?? 0} />
-          </section>
+        <div className="space-y-5">
+          {inventoryQuery.error ? (
+            <InventoryErrorState
+              error={inventoryQuery.error}
+              onRetry={() => void inventoryQuery.refetch()}
+              isRetrying={inventoryQuery.isFetching}
+            />
+          ) : null}
 
-          <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-            <section className="space-y-4">
-              <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-                <h2 className="font-display text-xl font-semibold">Adjust stock</h2>
-                <form
-                  className="mt-4 space-y-4"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (!productId) {
-                      toast.error("Pick a product first");
-                      return;
-                    }
-                    mutation.mutate();
-                  }}
-                >
-                  <Field label="Product">
-                    <Select value={productId} onValueChange={setProductId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(data?.products ?? []).map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} · {product.stockQty} on hand
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Mode">
-                      <Select value={mode} onValueChange={(value) => setMode(value as Mode)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="delta">Add / remove</SelectItem>
-                          <SelectItem value="set">Set exact</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label={mode === "set" ? "New quantity" : "Change (+/-)"}>
-                      <Input
-                        type="number"
-                        value={amount}
-                        onChange={(event) => setAmount(Number(event.target.value))}
-                        required
-                      />
-                    </Field>
-                  </div>
-                  {selectedProduct && (
-                    <p className="text-xs text-muted-foreground">
-                      {selectedProduct.name}: {selectedProduct.stockQty} →{" "}
-                      <span className="font-medium text-foreground">
-                        {mode === "set"
-                          ? Math.max(amount, 0)
-                          : Math.max(selectedProduct.stockQty + amount, 0)}
-                      </span>
-                    </p>
-                  )}
-                  <Field label="Reason">
-                    <Select value={reason} onValueChange={(value) => setReason(value as Reason)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(REASON_LABEL) as Reason[]).map((key) => (
-                          <SelectItem key={key} value={key}>
-                            {REASON_LABEL[key]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Note (optional)">
-                    <Input
-                      value={note}
-                      onChange={(event) => setNote(event.target.value)}
-                      maxLength={300}
-                      placeholder="e.g. Received PO #1234"
-                    />
-                  </Field>
-                  <Button type="submit" disabled={mutation.isPending}>
-                    {mutation.isPending && <Loader2 className="animate-spin" />}
-                    {mutation.isPending ? "Saving..." : "Apply adjustment"}
-                  </Button>
-                </form>
-              </div>
+          <InventoryMetrics
+            stats={inventoryQuery.data?.stats}
+            isLoading={inventoryQuery.isLoading}
+          />
 
-              <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-                <h2 className="font-display text-lg font-semibold">Recent adjustments</h2>
-                <div className="mt-3 space-y-2">
-                  {(data?.recentAdjustments ?? []).length === 0 ? (
-                    <div className="animate-in fade-in slide-in-from-bottom-1 rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground duration-300 fill-mode-both">
-                      No adjustments yet.
-                    </div>
-                  ) : (
-                    (data?.recentAdjustments ?? []).map((adjustment) => (
-                      <div
-                        key={adjustment.id}
-                        className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate font-medium">{adjustment.productName}</div>
-                          <div className="text-xs capitalize text-muted-foreground">
-                            {adjustment.reason} ·{" "}
-                            {format(new Date(adjustment.created_at), "MMM d, h:mm a")}
-                          </div>
-                        </div>
-                        <div
-                          className={`shrink-0 font-mono text-sm font-semibold ${
-                            adjustment.delta >= 0 ? "text-emerald-700" : "text-red-700"
-                          }`}
-                        >
-                          {adjustment.delta >= 0 ? "+" : ""}
-                          {adjustment.delta}
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">
-                            → {adjustment.new_qty}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </section>
+          <InventoryToolbar
+            value={filters}
+            onChange={setFilters}
+            onClear={() => setFilters(INITIAL_FILTERS)}
+            categories={categories}
+            resultCount={inventoryQuery.isLoading ? 0 : visibleProducts.length}
+            totalCount={inventoryQuery.isLoading ? 0 : products.length}
+            disabled={inventoryQuery.isLoading}
+          />
 
-            <section className="space-y-4">
-              <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search products"
-                />
-              </div>
-              <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                          Loading...
-                        </TableCell>
-                      </TableRow>
-                    ) : products.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
-                            No products found.
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      products.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-xs text-muted-foreground">{product.unitLabel}</div>
-                          </TableCell>
-                          <TableCell>{product.category ?? "None"}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCents(product.priceCents)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span
-                              key={product.status}
-                              className={`${badgeMotionRef.current ? "animate-badge-bump " : ""}rounded-md border px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[product.status]}`}
-                            >
-                              {product.stockQty}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setProductId(product.id);
-                                setMode("delta");
-                                setAmount(0);
-                              }}
-                            >
-                              Adjust
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </section>
+          <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
+            <InventoryList
+              products={visibleProducts}
+              isLoading={inventoryQuery.isLoading}
+              isFiltered={isFiltered}
+              selectedProductId={adjustment.productId}
+              onAdjust={handleAdjustProduct}
+              onClearFilters={() => setFilters(INITIAL_FILTERS)}
+            />
+
+            <aside className="space-y-5 xl:sticky xl:top-28">
+              <StockAdjustmentForm
+                ref={adjustmentFormRef}
+                products={products}
+                value={adjustment}
+                onChange={handleAdjustmentChange}
+                onSubmit={(submission) => adjustmentMutation.mutate(submission)}
+                isSubmitting={adjustmentMutation.isPending}
+                disabled={inventoryQuery.isLoading}
+                submissionError={
+                  adjustmentMutation.error instanceof Error
+                    ? adjustmentMutation.error.message
+                    : null
+                }
+              />
+              <InventoryActivity
+                adjustments={inventoryQuery.data?.recentAdjustments ?? []}
+                isLoading={inventoryQuery.isLoading}
+              />
+            </aside>
           </div>
         </div>
       )}
     </AdminPageFrame>
-  );
-}
-
-function Metric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="text-sm text-muted-foreground">{label}</div>
-        <Icon className="h-4 w-4 text-primary" />
-      </div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  const id = label.toLowerCase().replace(/\s+/g, "-");
-  return (
-    <div>
-      <Label htmlFor={id}>{label}</Label>
-      <div className="mt-1">{children}</div>
-    </div>
   );
 }

@@ -66,7 +66,11 @@ export const getAdminInventory = createServerFn({ method: "GET" }).handler(async
       stockQty: product.stock_qty,
       category: product.categories?.name ?? null,
       status:
-        product.stock_qty <= 0 ? "out" : product.stock_qty <= LOW_STOCK_THRESHOLD ? "low" : "ok",
+        product.stock_qty <= 0
+          ? ("out" as const)
+          : product.stock_qty <= LOW_STOCK_THRESHOLD
+            ? ("low" as const)
+            : ("ok" as const),
     })),
     recentAdjustments: (adjustments ?? []).map((adjustment) => ({
       ...adjustment,
