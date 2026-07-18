@@ -339,33 +339,11 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
       return { ok: true };
     }
 
-    const { data: created, error: insertError } = await supabaseAdmin
-      .from("products")
-      .insert(row)
-      .select("id")
-      .single();
+    const { error: insertError } = await supabaseAdmin.from("products").insert(row);
     if (insertError) throw new Error(insertError.message);
 
-    // A brand-new product has no distributor_inventory rows anywhere yet —
-    // seed it into every supply-hub distributor (mirrors what the original
-    // migration did for existing products) so it's immediately available to
-    // hand out via stock transfer requests. Regular (non-hub) distributors
-    // deliberately do NOT get a row here; they request stock like normal.
-    const { data: hubs, error: hubsError } = await supabaseAdmin
-      .from("distributors")
-      .select("id")
-      .eq("can_supply", true);
-    if (hubsError) throw new Error(hubsError.message);
-    if (hubs && hubs.length > 0) {
-      const { error: seedError } = await supabaseAdmin.from("distributor_inventory").insert(
-        hubs.map((hub) => ({
-          distributor_id: hub.id,
-          product_id: created.id,
-          stock_qty: row.stock_qty,
-        })),
-      );
-      if (seedError) throw new Error(seedError.message);
-    }
+    // The database stock-sync trigger creates the Main Warehouse inventory
+    // row from products.stock_qty in the same transaction.
 
     return { ok: true };
   });

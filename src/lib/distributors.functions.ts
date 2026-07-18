@@ -744,37 +744,81 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
     .limit(200);
   if (error) throw new Error(error.message);
 
+  const requestRows = requests ?? [];
+  if (requestRows.length === 0) return [];
+
   const distributorIds = [
     ...new Set(
-      (requests ?? []).flatMap((r) => [r.requesting_distributor_id, r.fulfilled_by_distributor_id]).filter(
-        (id): id is string => !!id,
-      ),
+      requestRows
+        .flatMap((r) => [r.requesting_distributor_id, r.fulfilled_by_distributor_id])
+        .filter((id): id is string => !!id),
     ),
   ];
-  const { data: distributorRows } = distributorIds.length
-    ? await supabaseAdmin.from("distributors").select("id, name").in("id", distributorIds)
-    : { data: [] };
-  const nameById = new Map((distributorRows ?? []).map((d) => [d.id, d.name]));
+  const productIds = [...new Set(requestRows.map((r) => r.product_id))];
+  const [
+    { data: namedDistributors, error: namedDistributorsError },
+    { data: activeDistributors, error: activeDistributorsError },
+    { data: inventoryRows, error: inventoryError },
+  ] = await Promise.all([
+    supabaseAdmin.from("distributors").select("id, name").in("id", distributorIds),
+    supabaseAdmin
+      .from("distributors")
+      .select("id, name, can_supply")
+      .eq("is_active", true)
+      .eq("can_supply", true)
+      .order("can_supply", { ascending: false })
+      .order("name", { ascending: true }),
+    supabaseAdmin
+      .from("distributor_inventory")
+      .select("distributor_id, product_id, stock_qty")
+      .in("product_id", productIds),
+  ]);
+  if (namedDistributorsError) throw new Error(namedDistributorsError.message);
+  if (activeDistributorsError) throw new Error(activeDistributorsError.message);
+  if (inventoryError) throw new Error(inventoryError.message);
 
-  return (requests ?? []).map((r) => ({
-    id: r.id,
-    requestingDistributorId: r.requesting_distributor_id,
-    requestingDistributorName: nameById.get(r.requesting_distributor_id) ?? "Unknown",
-    productId: r.product_id,
-    productName: r.products?.name ?? "Unknown product",
-    unitLabel: r.products?.unit_label ?? "",
-    requestedQty: r.requested_qty,
-    approvedQty: r.approved_qty,
-    status: r.status,
-    note: r.note,
-    adminNote: r.admin_note,
-    fulfilledByDistributorId: r.fulfilled_by_distributor_id,
-    fulfilledByName: r.fulfilled_by_distributor_id
-      ? (nameById.get(r.fulfilled_by_distributor_id) ?? null)
-      : null,
-    requestedAt: r.requested_at,
-    reviewedAt: r.reviewed_at,
-  }));
+  const nameById = new Map((namedDistributors ?? []).map((d) => [d.id, d.name]));
+  const stockByDistributorProduct = new Map(
+    (inventoryRows ?? []).map((row) => [`${row.distributor_id}:${row.product_id}`, row.stock_qty]),
+  );
+
+  return requestRows.map((r) => {
+    const supplierOptions = (activeDistributors ?? [])
+      .filter((distributor) => distributor.id !== r.requesting_distributor_id)
+      .map((distributor) => ({
+        distributorId: distributor.id,
+        name: distributor.name,
+        canSupply: distributor.can_supply,
+        stockQty: stockByDistributorProduct.get(`${distributor.id}:${r.product_id}`) ?? 0,
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.canSupply) - Number(a.canSupply) ||
+          b.stockQty - a.stockQty ||
+          a.name.localeCompare(b.name),
+      );
+
+    return {
+      id: r.id,
+      requestingDistributorId: r.requesting_distributor_id,
+      requestingDistributorName: nameById.get(r.requesting_distributor_id) ?? "Unknown",
+      productId: r.product_id,
+      productName: r.products?.name ?? "Unknown product",
+      unitLabel: r.products?.unit_label ?? "",
+      requestedQty: r.requested_qty,
+      approvedQty: r.approved_qty,
+      status: r.status,
+      note: r.note,
+      adminNote: r.admin_note,
+      fulfilledByDistributorId: r.fulfilled_by_distributor_id,
+      fulfilledByName: r.fulfilled_by_distributor_id
+        ? (nameById.get(r.fulfilled_by_distributor_id) ?? null)
+        : null,
+      requestedAt: r.requested_at,
+      reviewedAt: r.reviewed_at,
+      supplierOptions,
+    };
+  });
 });
 
 const reviewRequestSchema = z.object({
@@ -817,11 +861,24 @@ export const reviewStockTransferRequest = createServerFn({ method: "POST" })
 
     const { data: request, error: reqError } = await supabaseAdmin
       .from("stock_transfer_requests")
-      .select("requested_qty, status")
+      .select("requested_qty, requesting_distributor_id, status")
       .eq("id", data.requestId)
       .single();
     if (reqError || !request) throw new Error(reqError?.message ?? "Request not found");
     if (request.status !== "pending") throw new Error("This request has already been reviewed.");
+    if (fulfilledBy === request.requesting_distributor_id) {
+      throw new Error("The source and requesting distributor must be different.");
+    }
+
+    const { data: sourceDistributor, error: sourceError } = await supabaseAdmin
+      .from("distributors")
+      .select("id, is_active, can_supply")
+      .eq("id", fulfilledBy)
+      .maybeSingle();
+    if (sourceError) throw new Error(sourceError.message);
+    if (!sourceDistributor?.is_active || !sourceDistributor.can_supply) {
+      throw new Error("Choose the active Main Warehouse as the supply source.");
+    }
 
     const approvedQty = data.approvedQty ?? request.requested_qty;
 

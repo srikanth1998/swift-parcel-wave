@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   addServiceArea,
   assignDistributorUser,
   getAdminDistributors,
@@ -77,6 +84,7 @@ function AdminDistributorsPage() {
     action: ReviewAction;
   } | null>(null);
   const [approvedQty, setApprovedQty] = useState(1);
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [adminNote, setAdminNote] = useState("");
   // Avoid firing the badge-bump animation on first paint — only later
   // (real) state changes should replay it.
@@ -107,10 +115,6 @@ function AdminDistributorsPage() {
     queryKey: ["supplier-requests"],
     queryFn: () => getSupplierRequests(),
   });
-
-  // Exactly one hub today, but derived from the flag (not hardcoded by name)
-  // so a second hub keeps working without a code change here.
-  const hubDistributor = distributors.find((d) => d.can_supply);
 
   const upsertMutation = useMutation({
     mutationFn: (input: DistributorForm) =>
@@ -219,10 +223,28 @@ function AdminDistributorsPage() {
   });
 
   function openReview(request: SupplierRequest, action: ReviewAction) {
-    setApprovedQty(request.requestedQty);
+    const sourceWithEnoughStock = request.supplierOptions.find(
+      (source) => source.stockQty >= request.requestedQty,
+    );
+    const sourceWithSomeStock = request.supplierOptions.find((source) => source.stockQty > 0);
+    const defaultSource =
+      sourceWithEnoughStock ?? sourceWithSomeStock ?? request.supplierOptions[0];
+
+    setSelectedSupplierId(action === "approve" ? (defaultSource?.distributorId ?? "") : "");
+    setApprovedQty(
+      action === "approve" && defaultSource
+        ? Math.min(request.requestedQty, defaultSource.stockQty)
+        : request.requestedQty,
+    );
     setAdminNote("");
     setReviewTarget({ request, action });
   }
+
+  const selectedSupplier = reviewTarget?.request.supplierOptions.find(
+    (source) => source.distributorId === selectedSupplierId,
+  );
+  const availableSupplierStock = selectedSupplier?.stockQty ?? 0;
+  const approvalExceedsStock = approvedQty > availableSupplierStock;
 
   return (
     <AdminPageFrame
@@ -467,24 +489,57 @@ function AdminDistributorsPage() {
                 requestId: reviewTarget.request.id,
                 action: reviewTarget.action,
                 approvedQty: reviewTarget.action === "approve" ? approvedQty : undefined,
-                fulfilledByDistributorId: hubDistributor?.id,
+                fulfilledByDistributorId:
+                  reviewTarget.action === "approve" ? selectedSupplierId : undefined,
                 adminNote,
               });
             }}
           >
             {reviewTarget?.action === "approve" && (
               <>
-                <Field label="Fulfilled by">
-                  <Input value={hubDistributor?.name ?? "No supply hub configured"} disabled readOnly />
+                <Field label="Source warehouse">
+                  <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                    <SelectTrigger aria-label="Source warehouse">
+                      <SelectValue placeholder="Choose a warehouse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reviewTarget.request.supplierOptions.map((source) => (
+                        <SelectItem key={source.distributorId} value={source.distributorId}>
+                          {source.name} — {source.stockQty} available
+                          {source.canSupply ? " (supply hub)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Stock is checked against this warehouse, not the global catalog quantity.
+                  </p>
                 </Field>
                 <Field label="Quantity to send">
                   <Input
                     type="number"
                     min={1}
+                    max={availableSupplierStock || undefined}
                     value={approvedQty}
                     onChange={(event) => setApprovedQty(Number(event.target.value))}
+                    aria-describedby="supplier-stock-help"
+                    aria-invalid={approvalExceedsStock}
                     required
                   />
+                  <p
+                    id="supplier-stock-help"
+                    className={
+                      approvalExceedsStock
+                        ? "mt-1 text-xs text-destructive"
+                        : "mt-1 text-xs text-muted-foreground"
+                    }
+                  >
+                    {selectedSupplier
+                      ? approvalExceedsStock
+                        ? `${selectedSupplier.name} only has ${availableSupplierStock} available.`
+                        : `${availableSupplierStock} available at ${selectedSupplier.name}.`
+                      : "Choose a source warehouse to view its available stock."}
+                  </p>
                 </Field>
               </>
             )}
@@ -506,7 +561,10 @@ function AdminDistributorsPage() {
                 disabled={
                   reviewMutation.isPending ||
                   (reviewTarget?.action === "approve" &&
-                    (!approvedQty || approvedQty < 1 || !hubDistributor))
+                    (!approvedQty ||
+                      approvedQty < 1 ||
+                      !selectedSupplierId ||
+                      approvalExceedsStock))
                 }
               >
                 {reviewMutation.isPending && <Loader2 className="animate-spin" />}
