@@ -937,6 +937,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      approve_stock_transfers_bulk: {
+        Args: {
+          _admin_note: string
+          _fulfilled_by_distributor_id: string
+          _request_ids: string[]
+          _reviewed_by: string
+        }
+        Returns: number
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_admin_inventory_stats: {

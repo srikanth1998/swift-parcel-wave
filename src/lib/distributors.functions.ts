@@ -895,6 +895,46 @@ export const reviewStockTransferRequest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const bulkApproveRequestsSchema = z.object({
+  requestIds: z.array(z.string().uuid()).min(1).max(100),
+});
+
+export const bulkApproveStockTransferRequests = createServerFn({ method: "POST" })
+  .validator((input: unknown) => bulkApproveRequestsSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { userId } = await requireAdmin();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const requestIds = [...new Set(data.requestIds)];
+
+    const { data: supplyWarehouses, error: warehouseError } = await supabaseAdmin
+      .from("distributors")
+      .select("id")
+      .eq("is_active", true)
+      .eq("can_supply", true)
+      .limit(2);
+    if (warehouseError) throw new Error(warehouseError.message);
+    if (supplyWarehouses?.length !== 1) {
+      throw new Error(
+        supplyWarehouses?.length
+          ? "More than one supply warehouse is active. Configure a single Main Warehouse before bulk approval."
+          : "The Main Warehouse is not active.",
+      );
+    }
+
+    const { data: approvedCount, error: rpcError } = await supabaseAdmin.rpc(
+      "approve_stock_transfers_bulk",
+      {
+        _request_ids: requestIds,
+        _fulfilled_by_distributor_id: supplyWarehouses[0].id,
+        _reviewed_by: userId,
+        _admin_note: "Bulk approved by admin",
+      },
+    );
+    if (rpcError) throw new Error(rpcError.message);
+
+    return { ok: true, approvedCount };
+  });
+
 // ---------- Picking-time substitution (item unavailable) ----------
 
 // Called by a distributor (scoped to their own order) or admin/staff when an

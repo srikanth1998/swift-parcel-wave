@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Check, Loader2, Mail, Phone, Plus, UserMinus, UserPlus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ import {
 import {
   addServiceArea,
   assignDistributorUser,
+  bulkApproveStockTransferRequests,
   getAdminDistributors,
   getAdminDistributorUsers,
   getSupplierRequests,
@@ -86,6 +88,8 @@ function AdminDistributorsPage() {
   const [approvedQty, setApprovedQty] = useState(1);
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
   const [adminNote, setAdminNote] = useState("");
+  const [selectedRequestIds, setSelectedRequestIds] = useState<Set<string>>(() => new Set());
+  const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
   // Avoid firing the badge-bump animation on first paint — only later
   // (real) state changes should replay it.
   const badgeMotionRef = useRef(false);
@@ -115,6 +119,29 @@ function AdminDistributorsPage() {
     queryKey: ["supplier-requests"],
     queryFn: () => getSupplierRequests(),
   });
+
+  const pendingRequests = useMemo(
+    () => supplierRequests.filter((request) => request.status === "pending"),
+    [supplierRequests],
+  );
+  const selectedRequests = useMemo(
+    () => pendingRequests.filter((request) => selectedRequestIds.has(request.id)),
+    [pendingRequests, selectedRequestIds],
+  );
+  const allPendingSelected =
+    pendingRequests.length > 0 && selectedRequests.length === pendingRequests.length;
+  const selectedRequestedQty = selectedRequests.reduce(
+    (total, request) => total + request.requestedQty,
+    0,
+  );
+
+  useEffect(() => {
+    const pendingIds = new Set(pendingRequests.map((request) => request.id));
+    setSelectedRequestIds((current) => {
+      const next = new Set([...current].filter((id) => pendingIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [pendingRequests]);
 
   const upsertMutation = useMutation({
     mutationFn: (input: DistributorForm) =>
@@ -221,6 +248,39 @@ function AdminDistributorsPage() {
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Could not review request"),
   });
+
+  const bulkApproveMutation = useMutation({
+    mutationFn: (requestIds: string[]) =>
+      bulkApproveStockTransferRequests({ data: { requestIds } }),
+    onSuccess: async ({ approvedCount }) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["supplier-requests"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-distributors"] }),
+      ]);
+      setSelectedRequestIds(new Set());
+      setBulkApproveOpen(false);
+      toast.success(
+        `${approvedCount} stock ${approvedCount === 1 ? "request" : "requests"} approved`,
+      );
+    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Could not approve selected requests"),
+  });
+
+  function setRequestSelected(requestId: string, selected: boolean) {
+    setSelectedRequestIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(requestId);
+      else next.delete(requestId);
+      return next;
+    });
+  }
+
+  function setAllPendingSelected(selected: boolean) {
+    setSelectedRequestIds(
+      selected ? new Set(pendingRequests.map((request) => request.id)) : new Set(),
+    );
+  }
 
   function openReview(request: SupplierRequest, action: ReviewAction) {
     const sourceWithEnoughStock = request.supplierOptions.find(
@@ -398,11 +458,25 @@ function AdminDistributorsPage() {
       )}
 
       <section className="animate-in fade-in slide-in-from-bottom-1 mt-6 overflow-hidden rounded-md border border-border bg-card shadow-sm duration-300 ease-out fill-mode-both">
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="font-display text-xl font-semibold">Pending stock requests</h2>
-          <p className="text-sm text-muted-foreground">
-            Review and fulfil stock transfer requests from any distributor.
-          </p>
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-xl font-semibold">Pending stock requests</h2>
+            <p className="text-sm text-muted-foreground">
+              Review and fulfil stock transfer requests from any distributor.
+            </p>
+          </div>
+          <Button
+            type="button"
+            disabled={selectedRequests.length === 0 || bulkApproveMutation.isPending}
+            onClick={() => setBulkApproveOpen(true)}
+          >
+            {bulkApproveMutation.isPending ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <Check />
+            )}
+            Approve selected{selectedRequests.length > 0 ? ` (${selectedRequests.length})` : ""}
+          </Button>
         </div>
         {requestsError ? (
           <div className="p-4 text-sm text-destructive">
@@ -412,6 +486,20 @@ function AdminDistributorsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      allPendingSelected
+                        ? true
+                        : selectedRequests.length > 0
+                          ? "indeterminate"
+                          : false
+                    }
+                    onCheckedChange={(checked) => setAllPendingSelected(checked === true)}
+                    disabled={pendingRequests.length === 0 || bulkApproveMutation.isPending}
+                    aria-label="Select all pending stock requests"
+                  />
+                </TableHead>
                 <TableHead>Distributor</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead className="text-right">Requested</TableHead>
@@ -423,52 +511,116 @@ function AdminDistributorsPage() {
             <TableBody>
               {requestsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     Loading...
                   </TableCell>
                 </TableRow>
-              ) : supplierRequests.filter((r) => r.status === "pending").length === 0 ? (
+              ) : pendingRequests.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     No pending requests.
                   </TableCell>
                 </TableRow>
               ) : (
-                supplierRequests
-                  .filter((r) => r.status === "pending")
-                  .map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell className="font-medium">{request.requestingDistributorName}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{request.productName}</div>
-                        <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
-                      </TableCell>
-                      <TableCell className="text-right">{request.requestedQty}</TableCell>
-                      <TableCell className="max-w-56 truncate text-sm text-muted-foreground">
-                        {request.note || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(new Date(request.requestedAt), "MMM d, h:mm a")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" onClick={() => openReview(request, "reject")}>
-                            <X className="h-3.5 w-3.5" />
-                            Reject
-                          </Button>
-                          <Button size="sm" onClick={() => openReview(request, "approve")}>
-                            <Check className="h-3.5 w-3.5" />
-                            Approve
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                pendingRequests.map((request) => (
+                  <TableRow
+                    key={request.id}
+                    data-state={selectedRequestIds.has(request.id) ? "selected" : undefined}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRequestIds.has(request.id)}
+                        onCheckedChange={(checked) =>
+                          setRequestSelected(request.id, checked === true)
+                        }
+                        disabled={bulkApproveMutation.isPending}
+                        aria-label={`Select ${request.productName} request from ${request.requestingDistributorName}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{request.requestingDistributorName}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{request.productName}</div>
+                      <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
+                    </TableCell>
+                    <TableCell className="text-right">{request.requestedQty}</TableCell>
+                    <TableCell className="max-w-56 truncate text-sm text-muted-foreground">
+                      {request.note || "—"}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(request.requestedAt), "MMM d, h:mm a")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReview(request, "reject")}
+                          disabled={bulkApproveMutation.isPending}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => openReview(request, "approve")}
+                          disabled={bulkApproveMutation.isPending}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Approve
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
         )}
       </section>
+
+      <Dialog
+        open={bulkApproveOpen}
+        onOpenChange={(open) => !bulkApproveMutation.isPending && setBulkApproveOpen(open)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve selected requests?</DialogTitle>
+            <DialogDescription>
+              This will send the full requested quantity for {selectedRequests.length}{" "}
+              {selectedRequests.length === 1 ? "request" : "requests"} from FEABazaar — Main
+              Warehouse ({selectedRequestedQty} total units).
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The batch is all-or-nothing. If warehouse stock cannot fulfil every selected request,
+            none of them will be approved.
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBulkApproveOpen(false)}
+              disabled={bulkApproveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() =>
+                bulkApproveMutation.mutate(selectedRequests.map((request) => request.id))
+              }
+              disabled={selectedRequests.length === 0 || bulkApproveMutation.isPending}
+            >
+              {bulkApproveMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Check />
+              )}
+              {bulkApproveMutation.isPending ? "Approving..." : "Approve all selected"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={reviewTarget !== null} onOpenChange={(open) => !open && setReviewTarget(null)}>
         <DialogContent>
