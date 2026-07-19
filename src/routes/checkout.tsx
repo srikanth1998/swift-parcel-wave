@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
@@ -30,6 +30,11 @@ export const Route = createFileRoute("/checkout")({
   component: Checkout,
 });
 
+function createGuestAccessToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function Checkout() {
   const { items, subtotalCents, hydrated, clear } = useCart();
   const { user } = useAuthUser();
@@ -37,6 +42,10 @@ function Checkout() {
   const placeOrderFn = useServerFn(placeOrder);
   const validateCouponFn = useServerFn(validateCoupon);
   const [submitting, setSubmitting] = useState(false);
+  const submissionSecrets = useRef<{
+    idempotencyKey: string;
+    guestAccessToken: string;
+  } | null>(null);
 
   const { data: settings } = useQuery({
     queryKey: ["store-settings"],
@@ -75,9 +84,7 @@ function Checkout() {
     deliveryInstructions: "",
     customerNotes: "",
     substitutionPreference: "replace_similar" as
-      | "replace_similar"
-      | "refund_if_unavailable"
-      | "contact_me",
+      "replace_similar" | "refund_if_unavailable" | "contact_me",
   });
 
   useEffect(() => {
@@ -106,7 +113,6 @@ function Checkout() {
       zip: chosen.zip,
       deliveryInstructions: chosen.instructions ?? "",
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedAddresses, selectedAddressId]);
 
   useEffect(() => {
@@ -154,8 +160,13 @@ function Checkout() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      // Generate idempotency key to prevent duplicate orders on retry
-      const idempotencyKey = crypto.randomUUID();
+      // Keep both values stable across a network retry. The guest token has
+      // 256 bits of entropy and only its SHA-256 hash is stored in the DB.
+      submissionSecrets.current ??= {
+        idempotencyKey: crypto.randomUUID(),
+        guestAccessToken: createGuestAccessToken(),
+      };
+      const { idempotencyKey, guestAccessToken } = submissionSecrets.current;
       const result = await placeOrderFn({
         data: {
           ...form,
@@ -166,13 +177,18 @@ function Checkout() {
           walletCreditCents: walletApplied,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
           idempotencyKey,
+          guestAccessToken,
         },
       });
       toast.success("Order placed!");
       // H2 FIX: Navigate BEFORE clearing cart to prevent the empty-cart guard
       // from winning the navigation race. The order confirmation page will
       // show the order details, and clearing the cart afterwards is safe.
-      await navigate({ to: "/order/$orderNumber", params: { orderNumber: result.orderNumber } });
+      await navigate({
+        to: "/order/$orderNumber",
+        params: { orderNumber: result.orderNumber },
+        search: result.accessToken ? { accessToken: result.accessToken } : {},
+      });
       // Clear cart after navigation completes
       clear();
     } catch (err) {

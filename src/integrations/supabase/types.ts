@@ -438,6 +438,7 @@ export type Database = {
           delivery_instructions: string | null
           discount: number
           distributor_id: string
+          guest_access_token_hash: string | null
           id: string
           idempotency_key: string | null
           order_number: string
@@ -468,6 +469,7 @@ export type Database = {
           delivery_instructions?: string | null
           discount?: number
           distributor_id: string
+          guest_access_token_hash?: string | null
           id?: string
           idempotency_key?: string | null
           order_number: string
@@ -498,6 +500,7 @@ export type Database = {
           delivery_instructions?: string | null
           discount?: number
           distributor_id?: string
+          guest_access_token_hash?: string | null
           id?: string
           idempotency_key?: string | null
           order_number?: string
@@ -966,7 +969,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_guest_order: { Args: { _order_id: string }; Returns: boolean }
       is_referral_eligible_order: {
         Args: { _order: Database["public"]["Tables"]["orders"]["Row"] }
         Returns: boolean
@@ -980,12 +982,7 @@ export type Database = {
         Returns: undefined
       }
       redeem_coupon_atomic: {
-        Args: {
-          _coupon_id: string
-          _discount_cents: number
-          _order_id: string
-          _user_id: string
-        }
+        Args: { _order_id: string }
         Returns: boolean
       }
     }

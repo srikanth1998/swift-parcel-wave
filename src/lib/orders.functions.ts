@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import type { Database } from "@/integrations/supabase/types";
-import { generateOrderNumber } from "./format";
 import { STATUS_NOTIFICATION } from "./order-status";
 import { fetchStoreSettings } from "./store-settings";
 import { evaluateCoupon } from "./coupon-eval";
@@ -30,6 +29,16 @@ const cartItemSchema = z.object({
   qty: z.number().int().min(1).max(99),
 });
 
+const guestAccessTokenSchema = z
+  .string()
+  .regex(/^[0-9a-f]{64}$/, "Invalid guest order access token");
+
+async function hashGuestAccessToken(token: string): Promise<string> {
+  const bytes = new TextEncoder().encode(token);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 const placeOrderSchema = z.object({
   fullName: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(255),
@@ -49,6 +58,7 @@ const placeOrderSchema = z.object({
   walletCreditCents: z.number().int().min(0).max(10_000_000).optional().default(0),
   items: z.array(cartItemSchema).min(1).max(100),
   idempotencyKey: z.string().uuid().optional(),
+  guestAccessToken: guestAccessTokenSchema.optional(),
 });
 
 export const placeOrder = createServerFn({ method: "POST" })
@@ -68,13 +78,33 @@ export const placeOrder = createServerFn({ method: "POST" })
     if (data.idempotencyKey) {
       const { data: existing } = await supabaseAdmin
         .from("orders")
-        .select("order_number")
+        .select("order_number, customer_id, guest_access_token_hash")
         .eq("idempotency_key", data.idempotencyKey)
         .maybeSingle();
       if (existing) {
-        return { orderNumber: existing.order_number };
+        if (existing.customer_id === null) {
+          if (!data.guestAccessToken) {
+            throw new Error("This guest order requires its secure tracking link.");
+          }
+          const suppliedHash = await hashGuestAccessToken(data.guestAccessToken);
+          if (suppliedHash !== existing.guest_access_token_hash) {
+            throw new Error("This checkout attempt does not match the existing guest order.");
+          }
+          return {
+            orderNumber: existing.order_number,
+            accessToken: data.guestAccessToken,
+          };
+        }
+        return { orderNumber: existing.order_number, accessToken: null };
       }
     }
+
+    if (!userId && !data.guestAccessToken) {
+      throw new Error("Guest checkout requires a secure order tracking token. Please try again.");
+    }
+
+    const guestAccessTokenHash =
+      !userId && data.guestAccessToken ? await hashGuestAccessToken(data.guestAccessToken) : null;
 
     const pub = publicClient();
     const productIds = data.items.map((i) => i.productId);
@@ -152,6 +182,13 @@ export const placeOrder = createServerFn({ method: "POST" })
       subtotal >= settings.freeDeliveryThresholdCents ? 0 : settings.deliveryChargeCents;
     const total = afterWallet + tax + delivery_charge;
 
+    // Generate before any writes so an RPC failure cannot orphan an address.
+    const { data: orderNumber, error: orderNumErr } =
+      await supabaseAdmin.rpc("generate_order_number");
+    if (orderNumErr || !orderNumber) {
+      throw new Error(orderNumErr?.message ?? "Could not generate an order number.");
+    }
+
     // All inserts use supabaseAdmin (service_role) to bypass RLS.
     // This is the ONLY path to create orders - direct client inserts are blocked by RLS.
     const addressId = crypto.randomUUID();
@@ -169,14 +206,6 @@ export const placeOrder = createServerFn({ method: "POST" })
       instructions: data.deliveryInstructions || null,
     });
     if (addrErr) throw new Error(addrErr.message);
-
-    // Generate order number using database sequence (collision-resistant)
-    const { data: orderNumData, error: orderNumErr } = await supabaseAdmin.rpc("generate_order_number");
-    if (orderNumErr || !orderNumData) {
-      // Fallback to client-side generation if RPC fails
-      console.error("[placeOrder] generate_order_number RPC failed:", orderNumErr);
-    }
-    const orderNumber = orderNumData || generateOrderNumber();
 
     const orderId = crypto.randomUUID();
     const { error: orderErr } = await supabaseAdmin.from("orders").insert({
@@ -200,6 +229,7 @@ export const placeOrder = createServerFn({ method: "POST" })
       delivery_instructions: data.deliveryInstructions || null,
       substitution_preference: data.substitutionPreference,
       idempotency_key: data.idempotencyKey || null,
+      guest_access_token_hash: guestAccessTokenHash,
     });
     if (orderErr) {
       // Cleanup orphaned address
@@ -224,6 +254,26 @@ export const placeOrder = createServerFn({ method: "POST" })
       throw new Error(itemsErr.message);
     }
 
+    // Redeem before inventory and other bookkeeping. If a concurrent checkout
+    // consumes the coupon limit first, remove this order instead of silently
+    // granting an unrecorded discount.
+    if (couponId) {
+      const { data: redeemed, error: redeemErr } = await supabaseAdmin.rpc("redeem_coupon_atomic", {
+        _order_id: order.id,
+      });
+      if (redeemErr || !redeemed) {
+        try {
+          await supabaseAdmin.from("orders").delete().eq("id", order.id);
+          await supabaseAdmin.from("delivery_addresses").delete().eq("id", addressId);
+        } catch (cleanupErr) {
+          console.error("[placeOrder] coupon cleanup failed:", cleanupErr);
+        }
+        throw new Error(
+          redeemErr?.message ?? "This coupon is no longer available. Please review your order.",
+        );
+      }
+    }
+
     // Post-order bookkeeping. The order already exists, so failures here are
     // logged but never surfaced as a checkout failure to the customer.
     try {
@@ -234,44 +284,6 @@ export const placeOrder = createServerFn({ method: "POST" })
       if (stockErr) console.error("[placeOrder] stock decrement failed:", stockErr.message);
     } catch (err) {
       console.error("[placeOrder] stock decrement failed:", err);
-    }
-
-    // Record the coupon redemption atomically (prevents TOCTOU race condition)
-    if (couponId) {
-      try {
-        const { data: redeemed, error: redeemErr } = await supabaseAdmin.rpc("redeem_coupon_atomic", {
-          _coupon_id: couponId,
-          _order_id: order.id,
-          _user_id: userId as string,
-          _discount_cents: discount,
-        });
-        if (redeemErr) {
-          console.error("[placeOrder] atomic coupon redemption failed:", redeemErr.message);
-          // Fallback to non-atomic redemption for backwards compatibility
-          await supabaseAdmin.from("coupon_redemptions").insert({
-            coupon_id: couponId,
-            order_id: order.id,
-            user_id: userId,
-            discount_cents: discount,
-          });
-          // Fetch current count and increment (not perfectly atomic but functional fallback)
-          const { data: couponData } = await supabaseAdmin
-            .from("coupons")
-            .select("used_count")
-            .eq("id", couponId)
-            .single();
-          if (couponData) {
-            await supabaseAdmin
-              .from("coupons")
-              .update({ used_count: (couponData.used_count ?? 0) + 1 })
-              .eq("id", couponId);
-          }
-        } else if (!redeemed) {
-          console.warn("[placeOrder] coupon redemption returned false (limit reached)");
-        }
-      } catch (err) {
-        console.error("[placeOrder] coupon redemption bookkeeping failed:", err);
-      }
     }
 
     // Record wallet transaction to prevent double-spend
@@ -300,15 +312,18 @@ export const placeOrder = createServerFn({ method: "POST" })
       });
     }
 
-    return { orderNumber: order.order_number };
+    return {
+      orderNumber: order.order_number,
+      accessToken: userId ? null : data.guestAccessToken!,
+    };
   });
 
 const ORDER_SELECT =
   "id, order_number, order_status, payment_method, payment_status, subtotal, discount, coupon_code, wallet_credit_cents, tax, delivery_charge, total, customer_notes, delivery_instructions, substitution_preference, created_at, confirmed_at, picking_started_at, packing_started_at, packed_at, ready_for_delivery_at, sent_for_delivery_at, customer_id, delivery_addresses(full_name, phone, email, line1, line2, city, state, zip, instructions)";
 
 const getOrderByNumberSchema = z.object({
-  orderNumber: z.string(),
-  email: z.string().email().optional(),
+  orderNumber: z.string().trim().min(1).max(40),
+  accessToken: guestAccessTokenSchema.optional(),
 });
 
 export const getOrderByNumber = createServerFn({ method: "GET" })
@@ -326,35 +341,24 @@ export const getOrderByNumber = createServerFn({ method: "GET" })
 
     let order = mine;
 
-    // If not found and this is a guest order lookup, require email verification
+    // Guest orders are bearer-token protected. Returning the same generic
+    // challenge for every order number avoids an order-existence oracle.
     if (!order) {
-      // For guest orders, we need to verify the email matches to prevent PII enumeration
+      if (!data.accessToken) {
+        return { requiresGuestAccessToken: true as const };
+      }
+
+      const tokenHash = await hashGuestAccessToken(data.accessToken);
       const { data: guestOrder, error } = await supabaseAdmin
         .from("orders")
-        .select(`${ORDER_SELECT}`)
+        .select(ORDER_SELECT)
         .eq("order_number", data.orderNumber)
+        .eq("guest_access_token_hash", tokenHash)
         .is("customer_id", null)
         .maybeSingle();
 
       if (error) throw new Error(error.message);
-
-      if (guestOrder) {
-        // H1 FIX: Require email verification for guest order access
-        // The email must match the one used during checkout
-        const orderEmail = (guestOrder.delivery_addresses as { email?: string })?.email;
-        if (!data.email) {
-          // Return minimal info indicating order exists but email required
-          return {
-            requiresEmailVerification: true,
-            orderNumber: data.orderNumber,
-          };
-        }
-        if (data.email.toLowerCase() !== orderEmail?.toLowerCase()) {
-          // Don't reveal whether the order exists - just return null
-          return null;
-        }
-        order = guestOrder;
-      }
+      order = guestOrder;
     }
 
     if (!order) return null;

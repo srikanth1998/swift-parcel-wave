@@ -1,14 +1,10 @@
-import { createFileRoute, Link, notFound, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { z } from "zod";
 import { getOrderByNumber } from "@/lib/orders.functions";
 import { formatCents } from "@/lib/format";
 import { CUSTOMER_TIMELINE, STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
 import { Check, CircleDot, Package, Truck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Reveal } from "@/components/reveal";
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
@@ -25,21 +21,34 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
 };
 
 const orderSearchSchema = z.object({
-  email: z.string().email().optional(),
+  accessToken: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
 });
 
 export const Route = createFileRoute("/order/$orderNumber")({
   validateSearch: orderSearchSchema,
-  loaderDeps: ({ search }) => ({ email: search.email }),
+  loaderDeps: ({ search }) => ({ accessToken: search.accessToken }),
   loader: async ({ context, params, deps }) => {
     const order = await context.queryClient.ensureQueryData({
-      queryKey: ["order", params.orderNumber, deps.email],
-      queryFn: () => getOrderByNumber({ data: { orderNumber: params.orderNumber, email: deps.email } }),
+      queryKey: ["order", params.orderNumber, deps.accessToken],
+      queryFn: () =>
+        getOrderByNumber({
+          data: { orderNumber: params.orderNumber, accessToken: deps.accessToken },
+        }),
     });
-    // Don't throw notFound if requiresEmailVerification - let component handle it
+    // Keep the generic secure-link prompt routable without revealing whether
+    // a guest order number exists.
     if (!order) throw notFound();
   },
-  head: ({ params }) => ({ meta: [{ title: `Order ${params.orderNumber} — FEABazaar` }] }),
+  head: ({ params }) => ({
+    meta: [
+      { title: `Order ${params.orderNumber} — FEABazaar` },
+      { name: "referrer", content: "no-referrer" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+    ],
+  }),
   component: OrderPage,
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-24 text-center">
@@ -58,49 +67,23 @@ export const Route = createFileRoute("/order/$orderNumber")({
 
 function OrderPage() {
   const { orderNumber } = Route.useParams();
-  const { email: searchEmail } = Route.useSearch();
-  const [emailInput, setEmailInput] = useState("");
-  const [verifyEmail, setVerifyEmail] = useState(searchEmail || "");
+  const { accessToken } = Route.useSearch();
 
-  const { data: order, refetch } = useQuery({
-    queryKey: ["order", orderNumber, verifyEmail],
-    queryFn: () => getOrderByNumber({ data: { orderNumber, email: verifyEmail || undefined } }),
+  const { data: order } = useQuery({
+    queryKey: ["order", orderNumber, accessToken],
+    queryFn: () => getOrderByNumber({ data: { orderNumber, accessToken } }),
   });
 
-  // Handle email verification requirement for guest orders
-  if (order && "requiresEmailVerification" in order && order.requiresEmailVerification) {
+  if (order && "requiresGuestAccessToken" in order && order.requiresGuestAccessToken) {
     return (
       <div className="bg-muted/30">
         <div className="mx-auto max-w-md px-4 py-16">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 ease-out fill-mode-both rounded-2xl border border-border bg-card p-6 text-center">
-            <h1 className="font-display text-xl font-bold">Verify your email</h1>
+            <h1 className="font-display text-xl font-bold">Secure tracking link required</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              To view this guest order, please enter the email address used during checkout.
+              Open the private tracking link shown after checkout. For an older guest order, contact
+              support with your order number and checkout email.
             </p>
-            <form
-              className="mt-6 space-y-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setVerifyEmail(emailInput);
-                refetch();
-              }}
-            >
-              <div className="text-left">
-                <Label htmlFor="email">Email address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  className="mt-1"
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                View order
-              </Button>
-            </form>
             <p className="mt-4 text-xs text-muted-foreground">
               <Link to="/auth" className="text-primary hover:underline">
                 Sign in
@@ -113,7 +96,7 @@ function OrderPage() {
     );
   }
 
-  if (!order || "requiresEmailVerification" in order) return null;
+  if (!order || "requiresGuestAccessToken" in order) return null;
 
   const status = order.order_status;
   const isCancelled = status === "cancelled" || status === "refunded";
