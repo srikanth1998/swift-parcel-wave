@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useMemo, useState } from "react";
 import { listCategories, listProducts } from "@/lib/products.functions";
@@ -50,11 +50,11 @@ function Shop() {
   const [onlyDiscounted, setOnlyDiscounted] = useState(false);
   const [sort, setSort] = useState<SortMode>("popular");
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories } = useSuspenseQuery({
     queryKey: ["categories"],
     queryFn: () => listCategories(),
   });
-  const { data: products = [] } = useQuery({
+  const { data: products } = useSuspenseQuery({
     queryKey: ["products", { category: category ?? null }],
     queryFn: () => listProducts({ data: category ? { categorySlug: category } : {} }),
   });

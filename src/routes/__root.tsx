@@ -16,7 +16,19 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CartProvider } from "@/hooks/use-cart";
 import { SiteHeader } from "@/components/site-header";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
-import { supabase } from "@/integrations/supabase/client";
+import { hasSupabaseConfig, setSupabaseRuntimeConfig, supabase } from "@/integrations/supabase/client";
+
+function getSupabaseBootstrapConfig() {
+  const processEnv = typeof process !== "undefined" ? process.env : undefined;
+  const browserConfig = typeof window !== "undefined" ? window.__SUPABASE_CONFIG__ : undefined;
+  return {
+    url: processEnv?.SUPABASE_URL ?? browserConfig?.url ?? "",
+    publishableKey: processEnv?.SUPABASE_PUBLISHABLE_KEY ?? browserConfig?.publishableKey ?? "",
+  };
+}
+
+const supabaseBootstrapScript = () =>
+  `window.__SUPABASE_CONFIG__=${JSON.stringify(getSupabaseBootstrapConfig()).replace(/</g, "\\u003c")};`;
 
 function NotFoundComponent() {
   return (
@@ -130,6 +142,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: supabaseBootstrapScript() }} />
       </head>
       <body>
         {children}
@@ -154,8 +167,10 @@ function RouteTransition({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  setSupabaseRuntimeConfig(getSupabaseBootstrapConfig());
 
   useEffect(() => {
+    if (!hasSupabaseConfig()) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
