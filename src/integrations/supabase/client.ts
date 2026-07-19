@@ -2,6 +2,19 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
+type SupabaseRuntimeConfig = {
+  url?: string;
+  publishableKey?: string;
+};
+
+declare global {
+  interface Window {
+    __SUPABASE_CONFIG__?: SupabaseRuntimeConfig;
+  }
+}
+
+let runtimeConfig: SupabaseRuntimeConfig = {};
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
@@ -29,12 +42,44 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+export function setSupabaseRuntimeConfig(config: SupabaseRuntimeConfig) {
+  runtimeConfig = config;
+  if (typeof window !== "undefined") window.__SUPABASE_CONFIG__ = config;
+}
+
+export function hasSupabaseConfig() {
+  const metaEnv = import.meta.env as Record<string, string | undefined>;
+  const processEnv = typeof process !== "undefined" ? process.env : undefined;
+  const browserConfig = typeof window !== "undefined" ? window.__SUPABASE_CONFIG__ : undefined;
+  return Boolean(
+    metaEnv.VITE_SUPABASE_URL ||
+      runtimeConfig.url ||
+      browserConfig?.url ||
+      processEnv?.SUPABASE_URL,
+  ) && Boolean(
+    metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      runtimeConfig.publishableKey ||
+      browserConfig?.publishableKey ||
+      processEnv?.SUPABASE_PUBLISHABLE_KEY,
+  );
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const metaEnv = import.meta.env as Record<string, string | undefined>;
+  const processEnv = typeof process !== "undefined" ? process.env : undefined;
+  const browserConfig = typeof window !== "undefined" ? window.__SUPABASE_CONFIG__ : undefined;
+  const SUPABASE_URL =
+    metaEnv.VITE_SUPABASE_URL ||
+    runtimeConfig.url ||
+    browserConfig?.url ||
+    processEnv?.SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY =
-    import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+    metaEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    runtimeConfig.publishableKey ||
+    browserConfig?.publishableKey ||
+    processEnv?.SUPABASE_PUBLISHABLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
