@@ -316,7 +316,7 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
 
     const mrpCents = data.mrpRupees ? centsFromRupees(data.mrpRupees) : null;
     const priceCents = centsFromRupees(data.priceRupees);
-    
+
     const row = {
       name: data.name,
       slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
@@ -603,11 +603,30 @@ const uploadImageSchema = z.object({
   contentType: z
     .string()
     .trim()
-    .regex(/^image\/(png|jpe?g|webp|gif|avif|svg\+xml)$/i, "Only image files are allowed"),
+    .regex(/^image\/(png|jpe?g|webp)$/i, "Only PNG, JPEG, and WebP images are allowed"),
   folder: z.enum(["products", "categories"]),
 });
 
 const TEN_YEARS_SECONDS = 60 * 60 * 24 * 365 * 10;
+
+function hasExpectedImageSignature(buffer: Buffer, contentType: string) {
+  if (contentType === "image/png") {
+    return buffer
+      .subarray(0, 8)
+      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if (contentType === "image/jpeg" || contentType === "image/jpg") {
+    return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  }
+  if (contentType === "image/webp") {
+    return (
+      buffer.length >= 12 &&
+      buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+      buffer.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+  return false;
+}
 
 export const uploadAdminImage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => uploadImageSchema.parse(input))
@@ -620,18 +639,23 @@ export const uploadAdminImage = createServerFn({ method: "POST" })
     if (buffer.byteLength > 5 * 1024 * 1024) {
       throw new Error("Image is larger than 5 MB");
     }
+    const normalizedContentType = data.contentType.toLowerCase();
+    if (!hasExpectedImageSignature(buffer, normalizedContentType)) {
+      throw new Error("The uploaded file contents do not match its image type");
+    }
 
-    const safeName = data.filename
-      .toLowerCase()
-      .replace(/[^a-z0-9.]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(-80) || "image";
+    const safeName =
+      data.filename
+        .toLowerCase()
+        .replace(/[^a-z0-9.]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(-80) || "image";
     const path = `${data.folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`;
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from("product-images")
       .upload(path, buffer, {
-        contentType: data.contentType,
+        contentType: normalizedContentType,
         cacheControl: "31536000",
         upsert: false,
       });
