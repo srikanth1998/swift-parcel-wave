@@ -920,7 +920,7 @@ export type Database = {
           _amount: number
           _created_by: string
           _mode: string
-          _note: string | null
+          _note: string
           _product_id: string
           _reason: Database["public"]["Enums"]["inventory_reason_enum"]
         }
@@ -981,10 +981,17 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
-      redeem_coupon_atomic: {
-        Args: { _order_id: string }
-        Returns: boolean
-      }
+      redeem_coupon_atomic:
+        | {
+            Args: {
+              _coupon_id: string
+              _discount_cents: number
+              _order_id: string
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { _order_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "customer" | "staff" | "admin" | "distributor"
