@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatCents, deriveOffer } from "@/lib/format";
+import { formatCents, offerFor } from "@/lib/format";
 import { getStoreSettings } from "@/lib/settings.functions";
 import { QuantityStepper } from "@/components/quantity-stepper";
 import { Reveal } from "@/components/reveal";
@@ -63,7 +63,7 @@ function CartPage() {
   }
 
   const totalSavings = items.reduce((acc, item) => {
-    const off = deriveOffer(item.slug, item.priceCents);
+    const off = offerFor(item.priceCents, item.mrpCents);
     if (!off) return acc;
     return acc + (off.mrpCents - item.priceCents) * item.qty;
   }, 0);
@@ -91,7 +91,7 @@ function CartPage() {
 
           <ul className="mt-4 space-y-3">
             {items.map((item, i) => {
-              const offer = deriveOffer(item.slug, item.priceCents);
+              const offer = offerFor(item.priceCents, item.mrpCents);
               const isRemoving = removingIds.has(item.productId);
               const rowClassName = "flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4";
               const rowContent = (

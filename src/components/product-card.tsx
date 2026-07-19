@@ -114,6 +114,7 @@ export function ProductCard({ product }: { product: ProductCardData }) {
                   slug: product.slug,
                   name: product.name,
                   priceCents: product.price_cents,
+                  mrpCents: product.mrp_cents,
                   imageUrl: product.image_url,
                   unitLabel: product.unit_label,
                 });

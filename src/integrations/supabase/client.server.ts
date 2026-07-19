@@ -32,6 +32,24 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
+// Scaffolded .env.local ships a placeholder rather than a real key. Presence
+// alone is not enough: an unreplaced placeholder produces a client that 401s on
+// every request, which surfaces to users as an opaque "Invalid API key". Reject
+// anything that is not shaped like a real service-role credential so the failure
+// names its own cause.
+const SERVICE_KEY_PLACEHOLDERS = new Set([
+  "PASTE_KEY_HERE",
+  "YOUR_SERVICE_ROLE_KEY",
+  "CHANGE_ME",
+  "TODO",
+]);
+
+function isPlausibleServiceRoleKey(value: string): boolean {
+  if (SERVICE_KEY_PLACEHOLDERS.has(value.toUpperCase())) return false;
+  // New-style opaque key, or a legacy three-segment JWT.
+  return value.startsWith("sb_secret_") || value.split(".").length === 3;
+}
+
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_ROLE_KEY =
@@ -43,6 +61,14 @@ function createSupabaseAdminClient() {
       ...(!SUPABASE_SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
     ];
     const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Connect Supabase in Lovable Cloud.`;
+    console.error(`[Supabase] ${message}`);
+    throw new Error(message);
+  }
+
+  if (!isPlausibleServiceRoleKey(SUPABASE_SERVICE_ROLE_KEY)) {
+    const message =
+      "SUPABASE_SERVICE_ROLE_KEY is set but is not a valid service-role key (it looks like an unreplaced placeholder). " +
+      "Set the real service-role / sb_secret_... key in the deployment environment.";
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }

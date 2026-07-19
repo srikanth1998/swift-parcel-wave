@@ -62,7 +62,11 @@ function ReferralDashboard() {
 
   const referralLink = useMemo(() => {
     if (!data?.profile.referral_code) return "";
-    const origin = typeof window === "undefined" ? "https://mywebsite.com" : window.location.origin;
+    // This route's parent (_authenticated) sets ssr: false, so window is
+    // always available by the time this renders — no fake-domain fallback
+    // needed. If that ever changes, prefer a relative path over a placeholder
+    // like "https://mywebsite.com" that would be copy-pasted as-is.
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
     return `${origin}/signup?ref=${data.profile.referral_code}`;
   }, [data?.profile.referral_code]);
 

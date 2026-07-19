@@ -9,36 +9,26 @@ export function formatCents(paise: number): string {
   return INR.format((paise || 0) / 100);
 }
 
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
+export type Offer = { mrpCents: number; discountPct: number };
 
 /**
- * Deterministic pseudo-MRP + discount for visual polish only.
- * Not persisted — same input always returns same output (SSR-safe).
- * Returns null for ~40% of products (no offer badge).
+ * The saving on a product, derived from its real stored MRP.
+ *
+ * Returns null when there is no MRP on file or it does not exceed the selling
+ * price — in which case the UI must show no badge and no strikethrough.
+ *
+ * This is the same calculation product-card.tsx and product.$slug.tsx already
+ * do inline; centralised here so cart.tsx and shop.tsx use it too instead of
+ * `deriveOffer`, which hashed the product *slug* to invent an MRP and discount
+ * percentage. Those fabricated numbers were rendered to shoppers as "MRP
+ * ₹13.00", "30% OFF" and "You save ₹X", none of which corresponded to any real
+ * price — now that every product carries a real mrp_cents, there's no reason
+ * to invent one.
  */
-export function deriveOffer(
-  slug: string,
-  priceCents: number,
-): { mrpCents: number; discountPct: number } | null {
-  const h = hashString(slug);
-  if (h % 10 < 4) return null;
-  const options = [8, 12, 15, 20, 25, 30, 35];
-  const pct = options[h % options.length];
-  const mrp = Math.round(priceCents / (1 - pct / 100));
-  // Round MRP to nearest rupee for a clean strikethrough number
-  const rounded = Math.round(mrp / 100) * 100;
-  return { mrpCents: rounded, discountPct: pct };
-}
-
-export function generateOrderNumber(): string {
-  const d = new Date();
-  const yy = String(d.getFullYear()).slice(-2);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `FEA-${yy}${mm}${dd}-${rand}`;
+export function offerFor(priceCents: number, mrpCents: number | null | undefined): Offer | null {
+  if (mrpCents == null || mrpCents <= priceCents) return null;
+  return {
+    mrpCents,
+    discountPct: Math.round(((mrpCents - priceCents) / mrpCents) * 100),
+  };
 }

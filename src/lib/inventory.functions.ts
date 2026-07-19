@@ -119,7 +119,11 @@ export const adjustInventory = createServerFn({ method: "POST" })
       _mode: data.mode,
       _amount: data.amount,
       _reason: data.reason,
-      _note: data.note ?? null,
+      // adjust_inventory_atomic's _note parameter is nullable in Postgres (an
+      // adjustment can have no note), but the generated Args type has it as a
+      // plain `string` — stale relative to the function signature. Widen at
+      // the call site rather than hand-editing the generated types file.
+      _note: (data.note ?? null) as string,
       _created_by: userId,
     });
     if (error) throw new Error(error.message);

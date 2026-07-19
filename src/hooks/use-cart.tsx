@@ -13,6 +13,8 @@ export type CartItem = {
   slug: string;
   name: string;
   priceCents: number;
+  /** Real stored MRP, if the product has one. Absent on items added before this field existed. */
+  mrpCents?: number | null;
   imageUrl: string | null;
   unitLabel: string;
   qty: number;

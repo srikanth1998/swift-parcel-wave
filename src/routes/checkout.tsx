@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/hooks/use-cart";
@@ -46,6 +46,11 @@ function Checkout() {
     idempotencyKey: string;
     guestAccessToken: string;
   } | null>(null);
+  // Guards the fast-double-click case specifically: setSubmitting only takes
+  // effect after a re-render, which two clicks in the same tick can beat.
+  // submissionSecrets already makes a *retried* submit idempotent server-side;
+  // this stops a second click from firing a second request at all.
+  const submitLock = useRef(false);
 
   const { data: settings } = useQuery({
     queryKey: ["store-settings"],
@@ -158,6 +163,8 @@ function Checkout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitLock.current) return;
+    submitLock.current = true;
     setSubmitting(true);
     try {
       // Keep both values stable across a network retry. The guest token has
@@ -194,6 +201,7 @@ function Checkout() {
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Failed to place order");
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -264,29 +272,42 @@ function Checkout() {
           <h2 className="font-display text-lg font-semibold">Contact</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Full name" required>
-              <Input
-                required
-                maxLength={100}
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  autoComplete="name"
+                  maxLength={100}
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="Phone number" required>
-              <Input
-                required
-                maxLength={30}
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  type="tel"
+                  autoComplete="tel"
+                  maxLength={30}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="Email address" required className="md:col-span-2">
-              <Input
-                required
-                type="email"
-                maxLength={255}
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  type="email"
+                  autoComplete="email"
+                  maxLength={255}
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                />
+              )}
             </Field>
           </div>
         </section>
@@ -295,55 +316,78 @@ function Checkout() {
           <h2 className="font-display text-lg font-semibold">Delivery address</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Field label="Street address" required className="md:col-span-2">
-              <Input
-                required
-                maxLength={200}
-                value={form.line1}
-                onChange={(e) => setForm({ ...form, line1: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  autoComplete="address-line1"
+                  maxLength={200}
+                  value={form.line1}
+                  onChange={(e) => setForm({ ...form, line1: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="Apartment or unit (optional)" className="md:col-span-2">
-              <Input
-                maxLength={100}
-                value={form.line2}
-                onChange={(e) => setForm({ ...form, line2: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  autoComplete="address-line2"
+                  maxLength={100}
+                  value={form.line2}
+                  onChange={(e) => setForm({ ...form, line2: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="City" required>
-              <Input
-                required
-                maxLength={100}
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  autoComplete="address-level2"
+                  maxLength={100}
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="State" required>
-              <Input
-                required
-                maxLength={60}
-                value={form.state}
-                onChange={(e) => setForm({ ...form, state: e.target.value })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  autoComplete="address-level1"
+                  maxLength={60}
+                  value={form.state}
+                  onChange={(e) => setForm({ ...form, state: e.target.value })}
+                />
+              )}
             </Field>
             <Field label="PIN code" required>
-              <Input
-                required
-                inputMode="numeric"
-                pattern="\d{6}"
-                maxLength={6}
-                placeholder="6-digit PIN"
-                value={form.zip}
-                onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })}
-              />
+              {(id) => (
+                <Input
+                  id={id}
+                  required
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  placeholder="6-digit PIN"
+                  value={form.zip}
+                  onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })}
+                />
+              )}
             </Field>
             <Field label="Delivery instructions" className="md:col-span-2">
-              <Textarea
-                rows={2}
-                maxLength={500}
-                placeholder="e.g., Leave at the front door"
-                value={form.deliveryInstructions}
-                onChange={(e) => setForm({ ...form, deliveryInstructions: e.target.value })}
-              />
+              {(id) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="e.g., Leave at the front door"
+                  value={form.deliveryInstructions}
+                  onChange={(e) => setForm({ ...form, deliveryInstructions: e.target.value })}
+                />
+              )}
             </Field>
           </div>
         </section>
@@ -351,39 +395,47 @@ function Checkout() {
         <section className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-semibold">Preferences</h2>
           <div className="mt-4 grid gap-4">
-            <Field label="Payment method">
+            {/* Not a form control — a static statement of the only payment
+                method, so it needs no label association. */}
+            <div>
+              <span className="mb-1.5 block text-sm font-medium">Payment method</span>
               <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm">
                 Cash on Delivery
               </div>
-            </Field>
+            </div>
             <Field label="If an item is unavailable">
-              <Select
-                value={form.substitutionPreference}
-                onValueChange={(v) =>
-                  setForm({
-                    ...form,
-                    substitutionPreference: v as typeof form.substitutionPreference,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="replace_similar">Replace with a similar item</SelectItem>
-                  <SelectItem value="refund_if_unavailable">Refund the item</SelectItem>
-                  <SelectItem value="contact_me">Contact me first</SelectItem>
-                </SelectContent>
-              </Select>
+              {(id) => (
+                <Select
+                  value={form.substitutionPreference}
+                  onValueChange={(v) =>
+                    setForm({
+                      ...form,
+                      substitutionPreference: v as typeof form.substitutionPreference,
+                    })
+                  }
+                >
+                  <SelectTrigger id={id}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="replace_similar">Replace with a similar item</SelectItem>
+                    <SelectItem value="refund_if_unavailable">Refund the item</SelectItem>
+                    <SelectItem value="contact_me">Contact me first</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </Field>
             <Field label="Order notes (optional)">
-              <Textarea
-                rows={2}
-                maxLength={500}
-                placeholder="Anything else we should know?"
-                value={form.customerNotes}
-                onChange={(e) => setForm({ ...form, customerNotes: e.target.value })}
-              />
+              {(id) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Anything else we should know?"
+                  value={form.customerNotes}
+                  onChange={(e) => setForm({ ...form, customerNotes: e.target.value })}
+                />
+              )}
             </Field>
           </div>
         </section>
@@ -432,6 +484,7 @@ function Checkout() {
           ) : (
             <div className="flex gap-2">
               <Input
+                aria-label="Coupon code"
                 value={couponInput}
                 onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                 placeholder="Coupon code"
@@ -515,6 +568,14 @@ function Checkout() {
   );
 }
 
+/**
+ * Labels a single form control.
+ *
+ * `children` is called with an id that must be spread onto the control, so the
+ * <label> and the input are programmatically associated. Previously this
+ * rendered a bare <Label> next to an id-less <Input>, which left every control
+ * on this page announcing as unlabeled to screen readers.
+ */
 function Field({
   label,
   required,
@@ -524,15 +585,16 @@ function Field({
   label: string;
   required?: boolean;
   className?: string;
-  children: React.ReactNode;
+  children: (id: string) => React.ReactNode;
 }) {
+  const id = useId();
   return (
     <div className={className}>
-      <Label className="mb-1.5 block text-sm">
+      <Label htmlFor={id} className="mb-1.5 block text-sm">
         {label}
         {required && <span className="text-accent"> *</span>}
       </Label>
-      {children}
+      {children(id)}
     </div>
   );
 }

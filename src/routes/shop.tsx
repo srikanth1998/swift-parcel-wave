@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Search, SlidersHorizontal, ChevronRight, X, PackageSearch } from "lucide-react";
-import { deriveOffer } from "@/lib/format";
+import { offerFor } from "@/lib/format";
 
 const shopSearchSchema = z.object({
   category: z.string().optional(),
@@ -66,15 +66,15 @@ function Shop() {
     let list = products;
     if (query) list = list.filter((p) => p.name.toLowerCase().includes(query));
     if (priceMax) list = list.filter((p) => p.price_cents <= priceMax);
-    if (onlyDiscounted) list = list.filter((p) => deriveOffer(p.slug, p.price_cents) !== null);
+    if (onlyDiscounted) list = list.filter((p) => offerFor(p.price_cents, p.mrp_cents) !== null);
     const sorted = [...list];
     if (sort === "price-asc") sorted.sort((a, b) => a.price_cents - b.price_cents);
     if (sort === "price-desc") sorted.sort((a, b) => b.price_cents - a.price_cents);
     if (sort === "discount") {
       sorted.sort(
         (a, b) =>
-          (deriveOffer(b.slug, b.price_cents)?.discountPct ?? 0) -
-          (deriveOffer(a.slug, a.price_cents)?.discountPct ?? 0),
+          (offerFor(b.price_cents, b.mrp_cents)?.discountPct ?? 0) -
+          (offerFor(a.price_cents, a.mrp_cents)?.discountPct ?? 0),
       );
     }
     return sorted;
