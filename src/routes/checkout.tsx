@@ -9,6 +9,7 @@ import { getStoreSettings } from "@/lib/settings.functions";
 import { validateCoupon } from "@/lib/coupons.functions";
 import { getWalletBalance } from "@/lib/wallet.functions";
 import { listMyAddresses } from "@/lib/profile.functions";
+import { PincodeInput } from "@/components/pincode-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -364,16 +365,11 @@ function Checkout() {
             </Field>
             <Field label="PIN code" required>
               {(id) => (
-                <Input
+                <PincodeInput
                   id={id}
                   required
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  placeholder="6-digit PIN"
                   value={form.zip}
-                  onChange={(e) => setForm({ ...form, zip: e.target.value.replace(/\D/g, "") })}
+                  onChange={(zip) => setForm({ ...form, zip })}
                 />
               )}
             </Field>

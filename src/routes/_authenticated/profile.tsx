@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { LogOut, MapPin, Pencil, Plus, Star, Trash2, UserRound } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { PincodeInput } from "@/components/pincode-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -180,7 +181,12 @@ function ProfilePage() {
           </div>
           <div>
             <Label>Referral code</Label>
-            <Input value={profile?.referralCode ?? ""} readOnly disabled className="mt-1 bg-muted" />
+            <Input
+              value={profile?.referralCode ?? ""}
+              readOnly
+              disabled
+              className="mt-1 bg-muted"
+            />
           </div>
           <div className="sm:col-span-2">
             <Button type="submit" disabled={saveProfile.isPending}>
@@ -208,10 +214,7 @@ function ProfilePage() {
         ) : (
           <ul className="space-y-3">
             {addresses.map((a) => (
-              <li
-                key={a.id}
-                className="rounded-md border border-border p-4"
-              >
+              <li key={a.id} className="rounded-md border border-border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -348,13 +351,10 @@ function ProfilePage() {
               </div>
               <div>
                 <Label>PIN</Label>
-                <Input
+                <PincodeInput
                   value={form.zip}
-                  onChange={(e) => setForm({ ...form, zip: e.target.value })}
+                  onChange={(zip) => setForm({ ...form, zip })}
                   required
-                  maxLength={6}
-                  inputMode="numeric"
-                  pattern="\d{6}"
                 />
               </div>
             </div>
@@ -391,9 +391,7 @@ function ProfilePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold">Sign out</h2>
-            <p className="text-sm text-muted-foreground">
-              You'll be returned to the home page.
-            </p>
+            <p className="text-sm text-muted-foreground">You'll be returned to the home page.</p>
           </div>
           <Button
             variant="outline"

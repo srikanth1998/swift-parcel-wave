@@ -57,6 +57,37 @@ async function requireDistributor() {
   return { userId: data.user.id, distributorId };
 }
 
+// ---------- Public: pincode serviceability (checkout + saved addresses) ----------
+
+const pincodeQuerySchema = z.object({
+  query: z.string().trim().regex(/^\d{1,6}$/),
+});
+
+// Callable by anyone, including guests — same access level as placeOrder,
+// which relies on this same coverage data. service_areas has no
+// client-readable RLS policy (see resolveDistributorForPincode), so this
+// must run through supabaseAdmin. Prefix match so the checkout/address
+// forms can suggest pincodes as the user types; a distributor only ever
+// covers active pincodes, so inactive distributors' coverage is filtered out
+// here exactly as resolveDistributorForPincode does for the final order.
+export const searchServiceablePincodes = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => pincodeQuerySchema.parse(input))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("service_areas")
+      .select("pincode, distributors(is_active)")
+      .like("pincode", `${data.query}%`)
+      .order("pincode", { ascending: true })
+      .limit(20);
+    if (error) throw new Error(error.message);
+
+    return (rows ?? [])
+      .filter((row) => row.distributors?.is_active)
+      .map((row) => row.pincode)
+      .slice(0, 8);
+  });
+
 // ---------- Admin: manage distributors + coverage ----------
 
 export const getAdminDistributors = createServerFn({ method: "GET" }).handler(async () => {
