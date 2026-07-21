@@ -1,6 +1,13 @@
 import type { Database } from "@/integrations/supabase/types";
 
 export type OrderStatus = Database["public"]["Enums"]["order_status_enum"];
+export type SubstitutionPreference = Database["public"]["Enums"]["substitution_pref_enum"];
+
+export const SUBSTITUTION_LABEL: Record<SubstitutionPreference, string> = {
+  replace_similar: "Replace with similar if unavailable",
+  refund_if_unavailable: "Refund if unavailable",
+  contact_me: "Contact customer if unavailable",
+};
 
 export const CUSTOMER_TIMELINE: OrderStatus[] = [
   "order_placed",

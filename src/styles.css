@@ -200,3 +200,24 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Order print sheets (see order-print-sheet.tsx) render into the normal page
+   flow but stay display:none until print. When printing, hide everything
+   else and let the sheet take over the page instead of printing whatever
+   app screen happened to trigger it. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #order-print-sheet,
+  #order-print-sheet * {
+    visibility: visible;
+  }
+
+  #order-print-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}

@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Ban, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Ban, ChevronDown, ChevronRight, Loader2, Printer } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { DistributorPageFrame } from "@/components/distributor-nav";
+import { OrderPrintSheet } from "@/components/order-print-sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,24 +42,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Database } from "@/integrations/supabase/types";
 import {
   getDistributorOrders,
+  getDistributorOverview,
   markOrderItemUnavailable,
   updateDistributorOrder,
 } from "@/lib/distributors.functions";
 import { formatCents } from "@/lib/format";
-import { STATUS_LABEL, type OrderStatus } from "@/lib/order-status";
+import {
+  STATUS_LABEL,
+  SUBSTITUTION_LABEL,
+  type OrderStatus,
+  type SubstitutionPreference,
+} from "@/lib/order-status";
 import { listProducts } from "@/lib/products.functions";
 
 type OrderStatusFilter = OrderStatus | "all";
-type SubstitutionPreference = Database["public"]["Enums"]["substitution_pref_enum"];
-
-const SUBSTITUTION_LABEL: Record<SubstitutionPreference, string> = {
-  replace_similar: "Replace with similar if unavailable",
-  refund_if_unavailable: "Refund if unavailable",
-  contact_me: "Contact customer if unavailable",
-};
+type DistributorOrder = Awaited<ReturnType<typeof getDistributorOrders>>[number];
 
 // Distributors may only move orders through the fulfillment lifecycle —
 // this must mirror DISTRIBUTOR_ALLOWED_STATUSES in distributors.functions.ts
@@ -104,6 +104,7 @@ function DistributorOrdersPage() {
     name: string;
     preference: Extract<SubstitutionPreference, "refund_if_unavailable" | "contact_me">;
   } | null>(null);
+  const [printOrder, setPrintOrder] = useState<DistributorOrder | null>(null);
 
   const {
     data: orders = [],
@@ -121,6 +122,27 @@ function DistributorOrdersPage() {
     queryFn: () => listProducts({ data: {} }),
   });
   const productNameById = new Map(products.map((p) => [p.id, p.name]));
+
+  // Same query key as DistributorNav's call, so this just reads the already
+  // -cached distributor name instead of firing a second network request.
+  const { data: overview } = useQuery({
+    queryKey: ["distributor-overview"],
+    queryFn: () => getDistributorOverview(),
+  });
+
+  // Printing renders OrderPrintSheet into the DOM (see below) then hands off
+  // to the browser; afterprint fires whether the user printed or cancelled,
+  // so either way the sheet unmounts again afterwards.
+  useEffect(() => {
+    if (!printOrder) return;
+    window.print();
+  }, [printOrder]);
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintOrder(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
+  }, []);
 
   const updateMutation = useMutation({
     mutationFn: (input: { orderId: string; orderStatus: OrderStatus }) =>
@@ -276,16 +298,26 @@ function DistributorOrdersPage() {
                             {formatCents(order.total)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              title="Toggle details"
-                              onClick={() =>
-                                setExpanded((current) => ({ ...current, [order.id]: !isOpen }))
-                              }
-                            >
-                              {isOpen ? <ChevronDown /> : <ChevronRight />}
-                            </Button>
+                            <div className="flex justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Print order"
+                                onClick={() => setPrintOrder(order)}
+                              >
+                                <Printer />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Toggle details"
+                                onClick={() =>
+                                  setExpanded((current) => ({ ...current, [order.id]: !isOpen }))
+                                }
+                              >
+                                {isOpen ? <ChevronDown /> : <ChevronRight />}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                         {isOpen && (
@@ -490,6 +522,14 @@ function DistributorOrdersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {printOrder && (
+        <OrderPrintSheet
+          order={printOrder}
+          distributorName={overview?.distributor?.name}
+          productNameById={productNameById}
+        />
+      )}
     </DistributorPageFrame>
   );
 }
