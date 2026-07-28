@@ -47,6 +47,29 @@ type ProductForm = {
   isActive: boolean;
   isFeatured: boolean;
   tags: string;
+  hasVariants: boolean;
+  variants: VariantForm[];
+};
+
+type VariantForm = {
+  id?: string;
+  optionName: string;
+  optionValue: string;
+  priceRupees: number;
+  mrpRupees: number;
+  stockQty: number;
+  imageUrl: string;
+  isActive: boolean;
+};
+
+const emptyVariant: VariantForm = {
+  optionName: "Weight",
+  optionValue: "",
+  priceRupees: 0,
+  mrpRupees: 0,
+  stockQty: 0,
+  imageUrl: "",
+  isActive: true,
 };
 
 type CategoryForm = {
@@ -72,6 +95,8 @@ const emptyProduct: ProductForm = {
   isActive: true,
   isFeatured: false,
   tags: "",
+  hasVariants: false,
+  variants: [],
 };
 
 const emptyCategory: CategoryForm = {
@@ -113,6 +138,12 @@ function AdminProductsPage() {
     queryFn: () => getAdminCatalog(),
   });
 
+  const updateVariant = (index: number, patch: Partial<VariantForm>) =>
+    setProductForm((current) => ({
+      ...current,
+      variants: current.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
+    }));
+
   const productMutation = useMutation({
     mutationFn: (input: ProductForm) =>
       upsertAdminProduct({
@@ -122,6 +153,12 @@ function AdminProductsPage() {
           description: input.description || null,
           imageUrl: input.imageUrl || null,
           tags: parseTags(input.tags),
+          hasVariants: input.hasVariants,
+          variants: input.hasVariants
+            ? input.variants
+                .filter((v) => v.optionValue.trim().length > 0)
+                .map((v) => ({ ...v, imageUrl: v.imageUrl || null }))
+            : [],
         },
       }),
     onSuccess: async () => {
@@ -343,6 +380,135 @@ function AdminProductsPage() {
                     Leave empty to inherit tags from the selected category.
                   </p>
                 </Field>
+                <div className="rounded-md border border-border p-3">
+                  <ToggleField
+                    label="This product has multiple variants"
+                    checked={productForm.hasVariants}
+                    onCheckedChange={(hasVariants) =>
+                      setProductForm((current) => ({
+                        ...current,
+                        hasVariants,
+                        variants:
+                          hasVariants && current.variants.length === 0
+                            ? [{ ...emptyVariant }]
+                            : current.variants,
+                      }))
+                    }
+                  />
+                  {productForm.hasVariants && (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Each variant keeps its own price and stock. Customers pick one before adding
+                        to cart.
+                      </p>
+                      {productForm.variants.map((variant, index) => (
+                        <div
+                          key={variant.id ?? `new-${index}`}
+                          className="space-y-3 rounded-md border border-border bg-muted/30 p-3"
+                        >
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Option name">
+                              <Input
+                                value={variant.optionName}
+                                placeholder="Weight"
+                                onChange={(event) =>
+                                  updateVariant(index, { optionName: event.target.value })
+                                }
+                              />
+                            </Field>
+                            <Field label="Option value">
+                              <Input
+                                value={variant.optionValue}
+                                placeholder="500g"
+                                onChange={(event) =>
+                                  updateVariant(index, { optionValue: event.target.value })
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            <Field label="Price (Rs)">
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={variant.priceRupees}
+                                onChange={(event) =>
+                                  updateVariant(index, {
+                                    priceRupees: Number(event.target.value) || 0,
+                                  })
+                                }
+                              />
+                            </Field>
+                            <Field label="MRP (Rs)">
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={variant.mrpRupees}
+                                onChange={(event) =>
+                                  updateVariant(index, {
+                                    mrpRupees: Number(event.target.value) || 0,
+                                  })
+                                }
+                              />
+                            </Field>
+                            <Field label="Stock">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={variant.stockQty}
+                                onChange={(event) =>
+                                  updateVariant(index, { stockQty: Number(event.target.value) || 0 })
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <Field label="Variant image (optional)">
+                            <ImageUploadField
+                              folder="products"
+                              value={variant.imageUrl}
+                              onChange={(imageUrl) => updateVariant(index, { imageUrl })}
+                            />
+                          </Field>
+                          <div className="flex items-center justify-between gap-3">
+                            <ToggleField
+                              label="Available"
+                              checked={variant.isActive}
+                              onCheckedChange={(isActive) => updateVariant(index, { isActive })}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setProductForm((current) => ({
+                                  ...current,
+                                  variants: current.variants.filter((_, i) => i !== index),
+                                }))
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setProductForm((current) => ({
+                            ...current,
+                            variants: [...current.variants, { ...emptyVariant }],
+                          }))
+                        }
+                      >
+                        Add variant
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Button type="submit" disabled={productMutation.isPending}>
                   {productMutation.isPending && <Loader2 className="animate-spin" />}
                   {productMutation.isPending ? "Saving..." : "Save product"}
@@ -543,6 +709,19 @@ function AdminProductsPage() {
                                     isActive: product.is_active,
                                     isFeatured: product.is_featured,
                                     tags: (product.tags ?? []).join(", "),
+                                    hasVariants: product.has_variants ?? false,
+                                    variants: [...(product.product_variants ?? [])]
+                                      .sort((a, b) => a.sort_order - b.sort_order)
+                                      .map((v) => ({
+                                        id: v.id,
+                                        optionName: v.option_name,
+                                        optionValue: v.option_value,
+                                        priceRupees: v.price_cents / 100,
+                                        mrpRupees: v.mrp_cents ? v.mrp_cents / 100 : 0,
+                                        stockQty: v.stock_qty,
+                                        imageUrl: v.image_url ?? "",
+                                        isActive: v.is_active,
+                                      })),
                                   })
                                 }
                               >

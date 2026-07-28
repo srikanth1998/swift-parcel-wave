@@ -49,7 +49,7 @@ export const listProducts = createServerFn({ method: "GET" })
     let q = supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, brand, mrp_cents, tags, categories(slug, name, tags)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, is_featured, category_id, brand, mrp_cents, tags, has_variants, categories(slug, name, tags)",
       )
       .eq("is_active", true)
       .order("name", { ascending: true });
@@ -72,11 +72,34 @@ export const getProduct = createServerFn({ method: "GET" })
     const { data: row, error } = await supabase
       .from("products")
       .select(
-        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, brand, mrp_cents, tags, categories(slug, name, tags)",
+        "id, slug, name, description, price_cents, unit_label, image_url, stock_qty, brand, mrp_cents, tags, has_variants, categories(slug, name, tags)",
       )
       .eq("slug", data.slug)
       .eq("is_active", true)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return row;
+    if (!row) return null;
+
+    let variants: {
+      id: string;
+      option_name: string;
+      option_value: string;
+      price_cents: number;
+      mrp_cents: number | null;
+      stock_qty: number;
+      image_url: string | null;
+      sort_order: number;
+    }[] = [];
+    if (row.has_variants) {
+      const { data: variantRows, error: variantError } = await supabase
+        .from("product_variants")
+        .select("id, option_name, option_value, price_cents, mrp_cents, stock_qty, image_url, sort_order")
+        .eq("product_id", row.id)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      if (variantError) throw new Error(variantError.message);
+      variants = variantRows ?? [];
+    }
+
+    return { ...row, variants };
   });

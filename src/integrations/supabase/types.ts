@@ -376,6 +376,8 @@ export type Database = {
           product_id: string | null
           replacement_product_id: string | null
           unit_price_cents: number
+          variant_id: string | null
+          variant_label: string | null
         }
         Insert: {
           created_at?: string
@@ -388,6 +390,8 @@ export type Database = {
           product_id?: string | null
           replacement_product_id?: string | null
           unit_price_cents: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Update: {
           created_at?: string
@@ -400,6 +404,8 @@ export type Database = {
           product_id?: string | null
           replacement_product_id?: string | null
           unit_price_cents?: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Relationships: [
           {
@@ -421,6 +427,13 @@ export type Database = {
             columns: ["replacement_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -543,12 +556,69 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          mrp_cents: number | null
+          option_name: string
+          option_value: string
+          price_cents: number
+          product_id: string
+          sku: string | null
+          sort_order: number
+          stock_qty: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          mrp_cents?: number | null
+          option_name?: string
+          option_value: string
+          price_cents?: number
+          product_id: string
+          sku?: string | null
+          sort_order?: number
+          stock_qty?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          mrp_cents?: number | null
+          option_name?: string
+          option_value?: string
+          price_cents?: number
+          product_id?: string
+          sku?: string | null
+          sort_order?: number
+          stock_qty?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           brand: string | null
           category_id: string | null
           created_at: string
           description: string | null
+          has_variants: boolean
           id: string
           image_url: string | null
           is_active: boolean
@@ -567,6 +637,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -585,6 +656,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           description?: string | null
+          has_variants?: boolean
           id?: string
           image_url?: string | null
           is_active?: boolean
@@ -978,6 +1050,10 @@ export type Database = {
         Returns: undefined
       }
       record_order_stock_decrement: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      record_order_variant_stock_decrement: {
         Args: { _order_id: string }
         Returns: undefined
       }

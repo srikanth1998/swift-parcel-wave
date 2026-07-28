@@ -183,7 +183,7 @@ function Checkout() {
           customerNotes: form.customerNotes || null,
           couponCode: coupon?.code ?? null,
           walletCreditCents: walletApplied,
-          items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
+          items: items.map((i) => ({ productId: i.productId, qty: i.qty, variantId: i.variantId ?? null })),
           idempotencyKey,
           guestAccessToken,
         },
@@ -451,9 +451,10 @@ function Checkout() {
         <h2 className="font-display text-lg font-semibold">Order summary</h2>
         <ul className="mt-4 space-y-2 text-sm">
           {items.map((i) => (
-            <li key={i.productId} className="flex justify-between gap-2">
+            <li key={`${i.productId}::${i.variantId ?? ""}`} className="flex justify-between gap-2">
               <span className="min-w-0 truncate">
                 {i.qty} × {i.name}
+                {i.variantLabel ? ` – ${i.variantLabel}` : ""}
               </span>
               <span className="font-medium whitespace-nowrap">
                 {formatCents(i.priceCents * i.qty)}

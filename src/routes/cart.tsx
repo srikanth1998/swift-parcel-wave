@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useCart } from "@/hooks/use-cart";
+import { useCart, cartLineId } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCents, offerFor } from "@/lib/format";
@@ -92,7 +92,8 @@ function CartPage() {
           <ul className="mt-4 space-y-3">
             {items.map((item, i) => {
               const offer = offerFor(item.priceCents, item.mrpCents);
-              const isRemoving = removingIds.has(item.productId);
+              const lineId = cartLineId(item);
+              const isRemoving = removingIds.has(lineId);
               const rowClassName = "flex gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4";
               const rowContent = (
                 <>
@@ -121,7 +122,9 @@ function CartPage() {
                     >
                       {item.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{item.unitLabel}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.variantLabel ? item.variantLabel : item.unitLabel}
+                    </div>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-sm font-bold">{formatCents(item.priceCents)}</span>
                       {offer && (
@@ -139,7 +142,7 @@ function CartPage() {
                       <QuantityStepper
                         size="sm"
                         value={item.qty}
-                        onChange={(n) => setQty(item.productId, n)}
+                        onChange={(n) => setQty(lineId, n)}
                       />
                       <div className="flex items-center gap-1">
                         <span className="text-sm font-bold">
@@ -149,7 +152,7 @@ function CartPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleRemove(item.productId)}
+                          onClick={() => handleRemove(lineId)}
                           aria-label="Remove"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -163,7 +166,7 @@ function CartPage() {
               if (isRemoving) {
                 return (
                   <li
-                    key={item.productId}
+                    key={lineId}
                     className={`${rowClassName} animate-out fade-out slide-out-to-left-4 duration-200 ease-in fill-mode-forwards`}
                   >
                     {rowContent}
@@ -172,7 +175,7 @@ function CartPage() {
               }
 
               return (
-                <Reveal as="li" key={item.productId} index={i} className={rowClassName}>
+                <Reveal as="li" key={lineId} index={i} className={rowClassName}>
                   {rowContent}
                 </Reveal>
               );

@@ -27,6 +27,7 @@ function userScopedClient() {
 const cartItemSchema = z.object({
   productId: z.string().uuid(),
   qty: z.number().int().min(1).max(99),
+  variantId: z.string().uuid().nullable().optional(),
 });
 
 const guestAccessTokenSchema = z
@@ -119,6 +120,26 @@ export const placeOrder = createServerFn({ method: "POST" })
     }
     const priceMap = new Map(products.map((p) => [p.id, p]));
 
+    // Variant pricing is authoritative server-side too: look up any selected
+    // variants and use their price + label instead of the parent product's.
+    const variantIds = data.items.map((i) => i.variantId).filter((v): v is string => !!v);
+    const variantMap = new Map<
+      string,
+      { id: string; product_id: string; option_name: string; option_value: string; price_cents: number }
+    >();
+    if (variantIds.length > 0) {
+      const { data: variants, error: variantErr } = await pub
+        .from("product_variants")
+        .select("id, product_id, option_name, option_value, price_cents")
+        .in("id", variantIds)
+        .eq("is_active", true);
+      if (variantErr) throw new Error(variantErr.message);
+      for (const v of variants ?? []) variantMap.set(v.id, v);
+      if (variantMap.size !== new Set(variantIds).size) {
+        throw new Error("One or more selected options are no longer available.");
+      }
+    }
+
     // Stock (global or distributor-level) intentionally does NOT block
     // checkout — an order can always be placed. If a distributor can't
     // actually fulfil a line item, they mark it unavailable when picking and
@@ -141,11 +162,18 @@ export const placeOrder = createServerFn({ method: "POST" })
     let subtotal = 0;
     const orderItemRows = data.items.map((it) => {
       const p = priceMap.get(it.productId)!;
-      subtotal += p.price_cents * it.qty;
+      const variant = it.variantId ? variantMap.get(it.variantId) : undefined;
+      if (variant && variant.product_id !== p.id) {
+        throw new Error("Selected option does not belong to the product.");
+      }
+      const unitPrice = variant ? variant.price_cents : p.price_cents;
+      subtotal += unitPrice * it.qty;
       return {
         product_id: p.id,
-        name_snapshot: p.name,
-        unit_price_cents: p.price_cents,
+        variant_id: variant?.id ?? null,
+        variant_label: variant ? variant.option_value : null,
+        name_snapshot: variant ? `${p.name} – ${variant.option_value}` : p.name,
+        unit_price_cents: unitPrice,
         ordered_qty: it.qty,
       };
     });
@@ -284,6 +312,19 @@ export const placeOrder = createServerFn({ method: "POST" })
       if (stockErr) console.error("[placeOrder] stock decrement failed:", stockErr.message);
     } catch (err) {
       console.error("[placeOrder] stock decrement failed:", err);
+    }
+
+    // Variant-level stock is tracked on product_variants, decremented separately.
+    try {
+      const { error: variantStockErr } = await supabaseAdmin.rpc(
+        "record_order_variant_stock_decrement",
+        { _order_id: order.id },
+      );
+      if (variantStockErr) {
+        console.error("[placeOrder] variant stock decrement failed:", variantStockErr.message);
+      }
+    } catch (err) {
+      console.error("[placeOrder] variant stock decrement failed:", err);
     }
 
     // Record wallet transaction to prevent double-spend
