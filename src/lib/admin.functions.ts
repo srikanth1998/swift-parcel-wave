@@ -405,6 +405,7 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
   });
 
 // Inline "products board" edits: update the common product fields in one shot.
+
 // When stock changes here it is logged to the inventory ledger (reason
 // "correction") so the two modules stay in sync. Slug is intentionally left
 // untouched to avoid breaking storefront links.
