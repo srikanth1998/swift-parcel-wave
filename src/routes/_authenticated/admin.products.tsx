@@ -379,20 +379,37 @@ function AdminProductsPage() {
           {error instanceof Error ? error.message : "Catalog could not load."}
         </div>
       ) : (
-        <div className="grid items-start gap-6 xl:h-[calc(100dvh-15.5rem)] xl:min-h-[46rem] xl:grid-cols-[0.85fr_1.15fr] xl:overflow-hidden">
-          <section className="space-y-4 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable]">
-            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold">
-                  {productForm.id ? "Edit product" : "New product"}
-                </h2>
-                {productForm.id && (
-                  <Button variant="outline" size="sm" onClick={() => setProductForm(emptyProduct)}>
-                    <Plus />
-                    New
-                  </Button>
-                )}
-              </div>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCategoryForm(emptyCategory);
+                setCategoryDialogOpen(true);
+              }}
+            >
+              <Plus />
+              Add category
+            </Button>
+            <Button
+              onClick={() => {
+                setProductForm(emptyProduct);
+                setProductDialogOpen(true);
+              }}
+            >
+              <Plus />
+              Add product
+            </Button>
+          </div>
+
+          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+            <DialogContent className="max-h-[85dvh] max-w-3xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{productForm.id ? "Edit product" : "New product"}</DialogTitle>
+                <DialogDescription>
+                  Set pricing, stock, images, and variants for this product.
+                </DialogDescription>
+              </DialogHeader>
               <form
                 className="mt-4 space-y-4"
                 onSubmit={(event) => {
