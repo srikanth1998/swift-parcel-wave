@@ -120,6 +120,26 @@ export const placeOrder = createServerFn({ method: "POST" })
     }
     const priceMap = new Map(products.map((p) => [p.id, p]));
 
+    // Variant pricing is authoritative server-side too: look up any selected
+    // variants and use their price + label instead of the parent product's.
+    const variantIds = data.items.map((i) => i.variantId).filter((v): v is string => !!v);
+    const variantMap = new Map<
+      string,
+      { id: string; product_id: string; option_name: string; option_value: string; price_cents: number }
+    >();
+    if (variantIds.length > 0) {
+      const { data: variants, error: variantErr } = await pub
+        .from("product_variants")
+        .select("id, product_id, option_name, option_value, price_cents")
+        .in("id", variantIds)
+        .eq("is_active", true);
+      if (variantErr) throw new Error(variantErr.message);
+      for (const v of variants ?? []) variantMap.set(v.id, v);
+      if (variantMap.size !== new Set(variantIds).size) {
+        throw new Error("One or more selected options are no longer available.");
+      }
+    }
+
     // Stock (global or distributor-level) intentionally does NOT block
     // checkout — an order can always be placed. If a distributor can't
     // actually fulfil a line item, they mark it unavailable when picking and
