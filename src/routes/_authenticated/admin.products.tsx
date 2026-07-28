@@ -68,6 +68,8 @@ type VariantForm = {
   optionName: string;
   optionValue: string;
   sku: string;
+  /** True once an admin typed a custom SKU; auto-generation stops for that row. */
+  skuTouched?: boolean;
   priceRupees: number;
   mrpRupees: number;
   stockQty: number;
@@ -131,6 +133,38 @@ function parseTags(input: string): string[] {
     .slice(0, 6);
 }
 
+function skuToken(input: string, maxLength: number) {
+  return input
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, maxLength);
+}
+
+/** Builds a readable SKU like RICE-500G from the product name + variant name. */
+function buildVariantSku(productName: string, optionValue: string, index: number) {
+  const base = skuToken(productName, 10) || "ITEM";
+  const suffix = skuToken(optionValue, 8) || `V${index + 1}`;
+  return `${base}-${suffix}`;
+}
+
+/** Re-generates SKUs for every variant the admin has not manually edited. */
+function withAutoSkus(productName: string, variants: VariantForm[]): VariantForm[] {
+  const taken = new Set(
+    variants.filter((v) => v.skuTouched && v.sku.trim()).map((v) => v.sku.trim().toUpperCase()),
+  );
+  return variants.map((variant, index) => {
+    if (variant.skuTouched && variant.sku.trim()) return variant;
+    let sku = buildVariantSku(productName, variant.optionValue, index);
+    let attempt = 2;
+    while (taken.has(sku)) {
+      sku = `${buildVariantSku(productName, variant.optionValue, index)}-${attempt}`;
+      attempt += 1;
+    }
+    taken.add(sku);
+    return { ...variant, sku };
+  });
+}
+
 function variantValidationMessage(variants: VariantForm[]) {
   if (variants.length === 0) return "Add at least one variant.";
 
@@ -183,22 +217,22 @@ function AdminProductsPage() {
   });
 
   const updateVariant = (index: number, patch: Partial<VariantForm>) =>
-    setProductForm((current) => ({
-      ...current,
-      variants: current.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
-    }));
+    setProductForm((current) => {
+      const variants = current.variants.map((v, i) => (i === index ? { ...v, ...patch } : v));
+      return { ...current, variants: withAutoSkus(current.name, variants) };
+    });
 
   const addVariant = () =>
     setProductForm((current) => ({
       ...current,
       hasVariants: true,
-      variants: [
+      variants: withAutoSkus(current.name, [
         ...current.variants,
         {
           ...emptyVariant,
           optionName: current.variants[0]?.optionName || emptyVariant.optionName,
         },
-      ],
+      ]),
     }));
 
   const removeVariant = (index: number) =>
@@ -361,7 +395,11 @@ function AdminProductsPage() {
                       value={productForm.name}
                       aria-label="Product name"
                       onChange={(event) =>
-                        setProductForm((current) => ({ ...current, name: event.target.value }))
+                        setProductForm((current) => ({
+                          ...current,
+                          name: event.target.value,
+                          variants: withAutoSkus(event.target.value, current.variants),
+                        }))
                       }
                       required
                     />
@@ -604,10 +642,19 @@ function AdminProductsPage() {
                                 placeholder="e.g. RICE-500G"
                                 aria-label={`Variant ${index + 1} SKU`}
                                 required
-                                onChange={(event) =>
-                                  updateVariant(index, { sku: event.target.value.toUpperCase() })
-                                }
+                                onChange={(event) => {
+                                  const value = event.target.value.toUpperCase();
+                                  // Clearing the field hands control back to auto-generation.
+                                  updateVariant(index, {
+                                    sku: value,
+                                    skuTouched: value.trim().length > 0,
+                                  });
+                                }}
                               />
+                              <p className="text-xs text-muted-foreground">
+                                Auto-generated from the product and variant name. Edit to override,
+                                clear to go back to automatic.
+                              </p>
                             </Field>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -967,6 +1014,7 @@ function AdminProductsPage() {
                                         optionName: v.option_name,
                                         optionValue: v.option_value,
                                         sku: v.sku,
+                                        skuTouched: true,
                                         priceRupees: v.price_cents / 100,
                                         mrpRupees: v.mrp_cents ? v.mrp_cents / 100 : 0,
                                         stockQty: v.stock_qty,

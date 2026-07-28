@@ -429,13 +429,13 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
       : [];
 
     const { data: productId, error } = await supabaseAdmin.rpc("admin_upsert_product", {
-      _product_id: data.id ?? null,
+      _product_id: (data.id ?? null) as unknown as string,
       _name: data.name,
       _slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
       _description: data.description || "",
-      _category_id: data.categoryId || null,
+      _category_id: (data.categoryId || null) as unknown as string,
       _price_cents: priceCents,
-      _mrp_cents: mrpCents && mrpCents >= priceCents ? mrpCents : null,
+      _mrp_cents: (mrpCents && mrpCents >= priceCents ? mrpCents : null) as unknown as number,
       _brand: data.brand || "",
       _unit_label: data.unitLabel,
       _image_url: data.imageUrl || "",
