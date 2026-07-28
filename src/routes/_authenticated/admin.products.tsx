@@ -1014,6 +1014,7 @@ function AdminProductsPage() {
                                         optionName: v.option_name,
                                         optionValue: v.option_value,
                                         sku: v.sku,
+                                        skuTouched: true,
                                         priceRupees: v.price_cents / 100,
                                         mrpRupees: v.mrp_cents ? v.mrp_cents / 100 : 0,
                                         stockQty: v.stock_qty,
