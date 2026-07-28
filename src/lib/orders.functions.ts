@@ -27,6 +27,7 @@ function userScopedClient() {
 const cartItemSchema = z.object({
   productId: z.string().uuid(),
   qty: z.number().int().min(1).max(99),
+  variantId: z.string().uuid().nullable().optional(),
 });
 
 const guestAccessTokenSchema = z
