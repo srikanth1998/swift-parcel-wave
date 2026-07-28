@@ -137,6 +137,8 @@ function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   // Status pills should only "bump" in response to a real change, not on the
   // table's first paint (which would fire the animation on every visible row
   // at once). This flips true after mount, so only later re-renders animate.
@@ -207,6 +209,33 @@ function AdminProductsPage() {
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [data?.products, search]);
+
+  const visibleIds = products.map((product) => product.id);
+  const selectedVisibleIds = visibleIds.filter((id) => selectedIds.includes(id));
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
+
+  const toggleProduct = (id: string, checked: boolean) =>
+    setSelectedIds((current) =>
+      checked ? [...new Set([...current, id])] : current.filter((value) => value !== id),
+    );
+
+  const toggleAllVisible = (checked: boolean) =>
+    setSelectedIds((current) =>
+      checked
+        ? [...new Set([...current, ...visibleIds])]
+        : current.filter((id) => !visibleIds.includes(id)),
+    );
+
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) => deleteAdminProducts({ data: { ids } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
+      setSelectedIds([]);
+      setConfirmDeleteOpen(false);
+      toast.success(`Deleted ${result.deleted} product${result.deleted === 1 ? "" : "s"}`);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Delete failed"),
+  });
 
   return (
     <AdminPageFrame
