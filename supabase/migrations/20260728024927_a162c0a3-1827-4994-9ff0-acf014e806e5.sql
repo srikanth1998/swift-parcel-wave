@@ -1,0 +1,1 @@
+update public.store_settings set store_name = 'FEA Bazaar' where store_name = 'FEABazaar';
