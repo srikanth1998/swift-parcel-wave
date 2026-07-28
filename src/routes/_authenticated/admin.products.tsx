@@ -217,22 +217,22 @@ function AdminProductsPage() {
   });
 
   const updateVariant = (index: number, patch: Partial<VariantForm>) =>
-    setProductForm((current) => ({
-      ...current,
-      variants: current.variants.map((v, i) => (i === index ? { ...v, ...patch } : v)),
-    }));
+    setProductForm((current) => {
+      const variants = current.variants.map((v, i) => (i === index ? { ...v, ...patch } : v));
+      return { ...current, variants: withAutoSkus(current.name, variants) };
+    });
 
   const addVariant = () =>
     setProductForm((current) => ({
       ...current,
       hasVariants: true,
-      variants: [
+      variants: withAutoSkus(current.name, [
         ...current.variants,
         {
           ...emptyVariant,
           optionName: current.variants[0]?.optionName || emptyVariant.optionName,
         },
-      ],
+      ]),
     }));
 
   const removeVariant = (index: number) =>
@@ -395,7 +395,11 @@ function AdminProductsPage() {
                       value={productForm.name}
                       aria-label="Product name"
                       onChange={(event) =>
-                        setProductForm((current) => ({ ...current, name: event.target.value }))
+                        setProductForm((current) => ({
+                          ...current,
+                          name: event.target.value,
+                          variants: withAutoSkus(event.target.value, current.variants),
+                        }))
                       }
                       required
                     />
@@ -638,10 +642,19 @@ function AdminProductsPage() {
                                 placeholder="e.g. RICE-500G"
                                 aria-label={`Variant ${index + 1} SKU`}
                                 required
-                                onChange={(event) =>
-                                  updateVariant(index, { sku: event.target.value.toUpperCase() })
-                                }
+                                onChange={(event) => {
+                                  const value = event.target.value.toUpperCase();
+                                  // Clearing the field hands control back to auto-generation.
+                                  updateVariant(index, {
+                                    sku: value,
+                                    skuTouched: value.trim().length > 0,
+                                  });
+                                }}
                               />
+                              <p className="text-xs text-muted-foreground">
+                                Auto-generated from the product and variant name. Edit to override,
+                                clear to go back to automatic.
+                              </p>
                             </Field>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
