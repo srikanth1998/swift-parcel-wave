@@ -477,11 +477,29 @@ export const deleteAdminProducts = createServerFn({ method: "POST" })
       .in("replacement_product_id", ids);
     if (detachReplacementError) throw new Error(detachReplacementError.message);
 
+    const { data: variantRows, error: variantLookupError } = await supabaseAdmin
+      .from("product_variants")
+      .select("id")
+      .in("product_id", ids);
+    if (variantLookupError) throw new Error(variantLookupError.message);
+    const variantIds = (variantRows ?? []).map((row) => row.id);
+
+    if (variantIds.length > 0) {
+      const { error: detachVariantError } = await supabaseAdmin
+        .from("order_items")
+        .update({ variant_id: null })
+        .in("variant_id", variantIds);
+      if (detachVariantError) throw new Error(detachVariantError.message);
+    }
+
+    // Delete rows that reference product_variants with RESTRICT before the
+    // variants themselves, otherwise the whole delete is rejected.
     for (const table of [
-      "product_variants",
-      "distributor_inventory",
       "inventory_adjustments",
       "stock_transfer_requests",
+      "distributor_variant_inventory",
+      "product_variants",
+      "distributor_inventory",
     ] as const) {
       const { error } = await supabaseAdmin.from(table).delete().in("product_id", ids);
       if (error) throw new Error(error.message);
