@@ -150,34 +150,15 @@ export const upsertAdminDistributor = createServerFn({ method: "POST" })
       return { ok: true };
     }
 
-    const { data: created, error: insertError } = await supabaseAdmin
+    const { error: insertError } = await supabaseAdmin
       .from("distributors")
       .insert(row)
       .select("id")
       .single();
     if (insertError) throw new Error(insertError.message);
 
-    // A new hub distributor starts holding stock immediately (mirrors what
-    // the original migration did for Main Warehouse). A new regular
-    // distributor deliberately starts empty — they're expected to request
-    // stock from a hub via requestStockTransfer, that's the whole point.
-    if (data.canSupply) {
-      const { data: allProducts, error: productsError } = await supabaseAdmin
-        .from("products")
-        .select("id, stock_qty");
-      if (productsError) throw new Error(productsError.message);
-      if (allProducts && allProducts.length > 0) {
-        const { error: seedError } = await supabaseAdmin.from("distributor_inventory").insert(
-          allProducts.map((p) => ({
-            distributor_id: created.id,
-            product_id: p.id,
-            stock_qty: p.stock_qty,
-          })),
-        );
-        if (seedError) throw new Error(seedError.message);
-      }
-    }
-
+    // Supply-hub inventory is seeded atomically by the database. Regular
+    // distributors deliberately start empty and request stock from the hub.
     return { ok: true };
   });
 
