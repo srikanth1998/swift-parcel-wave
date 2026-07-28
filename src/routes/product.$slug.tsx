@@ -143,13 +143,28 @@ function ProductPage() {
   });
   const { add } = useCart();
   const [qty, setQty] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   if (!product) return null;
 
+  const variants = product.variants ?? [];
+  const hasVariants = variants.length > 0;
+  const selectedVariant = hasVariants
+    ? (variants.find((v) => v.id === selectedVariantId) ??
+      variants.find((v) => v.stock_qty > 0) ??
+      variants[0])
+    : null;
+
+  const priceCents = selectedVariant ? selectedVariant.price_cents : product.price_cents;
+  const mrpCents = selectedVariant ? selectedVariant.mrp_cents : product.mrp_cents;
+  const imageUrl = selectedVariant?.image_url || product.image_url;
+  const stockQty = selectedVariant ? selectedVariant.stock_qty : product.stock_qty;
+  const outOfStock = stockQty <= 0;
+
   // Calculate discount from real mrp_cents field
-  const hasDiscount = product.mrp_cents && product.mrp_cents > product.price_cents;
+  const hasDiscount = mrpCents && mrpCents > priceCents;
   const discountPct = hasDiscount
-    ? Math.round(((product.mrp_cents! - product.price_cents) / product.mrp_cents!) * 100)
+    ? Math.round(((mrpCents! - priceCents) / mrpCents!) * 100)
     : 0;
   const related = relatedRaw.filter((p) => p.id !== product.id).slice(0, 6);
 
@@ -191,9 +206,9 @@ function ProductPage() {
                   {discountPct}% OFF
                 </span>
               )}
-              {product.image_url ? (
+              {imageUrl ? (
                 <img
-                  src={product.image_url}
+                  src={imageUrl}
                   alt={product.name}
                   className="h-full w-full object-cover"
                 />
@@ -217,12 +232,12 @@ function ProductPage() {
 
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
               <span className="font-display text-3xl font-bold text-foreground">
-                {formatCents(product.price_cents)}
+                {formatCents(priceCents)}
               </span>
               {hasDiscount && (
                 <>
                   <span className="text-base text-muted-foreground line-through">
-                    {formatCents(product.mrp_cents!)}
+                    {formatCents(mrpCents!)}
                   </span>
                   <span className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-bold text-accent">
                     Save {discountPct}%
@@ -230,33 +245,74 @@ function ProductPage() {
                 </>
               )}
             </div>
-            <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-              <span className="inline-block h-2 w-2 rounded-full bg-primary" /> In stock — usually
-              packed the same day
-            </div>
+            {outOfStock ? (
+              <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <span className="inline-block h-2 w-2 rounded-full bg-destructive" /> Out of stock
+              </div>
+            ) : (
+              <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                <span className="inline-block h-2 w-2 rounded-full bg-primary" /> In stock — usually
+                packed the same day
+              </div>
+            )}
+
+            {hasVariants && (
+              <div className="mt-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {variants[0].option_name}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {variants.map((variant) => {
+                    const active = selectedVariant?.id === variant.id;
+                    const soldOut = variant.stock_qty <= 0;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setSelectedVariantId(variant.id)}
+                        aria-pressed={active}
+                        className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                          active
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-background text-foreground hover:border-primary/50"
+                        } ${soldOut ? "opacity-50" : ""}`}
+                      >
+                        {variant.option_value}
+                        {soldOut && <span className="ml-1 text-[10px]">(sold out)</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <QuantityStepper value={qty} onChange={setQty} />
               <Button
                 size="lg"
                 className="rounded-full px-6"
+                disabled={outOfStock}
                 onClick={() => {
                   add(
                     {
                       productId: product.id,
                       slug: product.slug,
                       name: product.name,
-                      priceCents: product.price_cents,
-                      mrpCents: product.mrp_cents,
-                      imageUrl: product.image_url,
+                      priceCents,
+                      mrpCents,
+                      imageUrl,
                       unitLabel: product.unit_label,
+                      variantId: selectedVariant?.id ?? null,
+                      variantLabel: selectedVariant?.option_value ?? null,
                     },
                     qty,
                   );
-                  toast.success(`Added ${qty} × ${product.name}`);
+                  toast.success(
+                    `Added ${qty} × ${product.name}${selectedVariant ? ` – ${selectedVariant.option_value}` : ""}`,
+                  );
                 }}
               >
-                Add to cart
+                {outOfStock ? "Out of stock" : "Add to cart"}
               </Button>
               <Button
                 variant="outline"
