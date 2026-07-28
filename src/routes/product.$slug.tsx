@@ -232,7 +232,9 @@ function ProductPage() {
             <h1 className="mt-1 font-display text-2xl font-bold text-foreground md:text-3xl">
               {product.name}
             </h1>
-            <div className="mt-1 text-sm text-muted-foreground">Unit · {product.unit_label}</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Unit · {selectedVariant?.option_value || product.unit_label}
+            </div>
 
             <div className="mt-4 flex flex-wrap items-baseline gap-3">
               <span className="font-display text-3xl font-bold text-foreground">
