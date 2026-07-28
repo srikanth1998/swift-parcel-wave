@@ -18,13 +18,22 @@ export type CartItem = {
   imageUrl: string | null;
   unitLabel: string;
   qty: number;
+  /** Selected product variant, when the product has variants. */
+  variantId?: string | null;
+  /** Human label of the selected variant, e.g. "5kg". */
+  variantLabel?: string | null;
 };
+
+/** Stable identity of a cart line: a product + its selected variant. */
+export function cartLineId(item: { productId: string; variantId?: string | null }) {
+  return `${item.productId}::${item.variantId ?? ""}`;
+}
 
 type CartContextValue = {
   items: CartItem[];
   add: (item: Omit<CartItem, "qty">, qty?: number) => void;
-  setQty: (productId: string, qty: number) => void;
-  remove: (productId: string) => void;
+  setQty: (lineId: string, qty: number) => void;
+  remove: (lineId: string) => void;
   clear: () => void;
   itemCount: number;
   subtotalCents: number;
@@ -58,27 +67,28 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, hydrated]);
 
   const add = useCallback((item: Omit<CartItem, "qty">, qty = 1) => {
+    const id = cartLineId(item);
     setItems((prev) => {
-      const existing = prev.find((p) => p.productId === item.productId);
+      const existing = prev.find((p) => cartLineId(p) === id);
       if (existing) {
         return prev.map((p) =>
-          p.productId === item.productId ? { ...p, qty: Math.min(99, p.qty + qty) } : p,
+          cartLineId(p) === id ? { ...p, qty: Math.min(99, p.qty + qty) } : p,
         );
       }
       return [...prev, { ...item, qty }];
     });
   }, []);
 
-  const setQty = useCallback((productId: string, qty: number) => {
+  const setQty = useCallback((lineId: string, qty: number) => {
     setItems((prev) =>
       qty <= 0
-        ? prev.filter((p) => p.productId !== productId)
-        : prev.map((p) => (p.productId === productId ? { ...p, qty: Math.min(99, qty) } : p)),
+        ? prev.filter((p) => cartLineId(p) !== lineId)
+        : prev.map((p) => (cartLineId(p) === lineId ? { ...p, qty: Math.min(99, qty) } : p)),
     );
   }, []);
 
-  const remove = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((p) => p.productId !== productId));
+  const remove = useCallback((lineId: string) => {
+    setItems((prev) => prev.filter((p) => cartLineId(p) !== lineId));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
