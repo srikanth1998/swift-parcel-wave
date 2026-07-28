@@ -1,11 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit, Loader2, Plus, Search, Upload, X } from "lucide-react";
+import { Edit, Loader2, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import {
   getAdminCatalog,
+  deleteAdminProducts,
   uploadAdminImage,
   upsertAdminCategory,
   upsertAdminProduct,
