@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -200,6 +207,8 @@ function AdminProductsPage() {
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [recentlySavedProductId, setRecentlySavedProductId] = useState<string | null>(null);
   const productRowsRef = useRef(new Map<string, HTMLTableRowElement>());
@@ -269,6 +278,7 @@ function AdminProductsPage() {
     onSuccess: async (result, savedProduct) => {
       setSearch("");
       setProductForm(emptyProduct);
+      setProductDialogOpen(false);
       setRecentlySavedProductId(result.productId ?? null);
       await queryClient.invalidateQueries({
         queryKey: ["admin-catalog"],
@@ -291,6 +301,7 @@ function AdminProductsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
       setCategoryForm(emptyCategory);
+      setCategoryDialogOpen(false);
       toast.success("Category saved");
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Category save failed"),
@@ -368,20 +379,37 @@ function AdminProductsPage() {
           {error instanceof Error ? error.message : "Catalog could not load."}
         </div>
       ) : (
-        <div className="grid items-start gap-6 xl:h-[calc(100dvh-15.5rem)] xl:min-h-[46rem] xl:grid-cols-[0.85fr_1.15fr] xl:overflow-hidden">
-          <section className="space-y-4 xl:h-full xl:min-h-0 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable]">
-            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold">
-                  {productForm.id ? "Edit product" : "New product"}
-                </h2>
-                {productForm.id && (
-                  <Button variant="outline" size="sm" onClick={() => setProductForm(emptyProduct)}>
-                    <Plus />
-                    New
-                  </Button>
-                )}
-              </div>
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCategoryForm(emptyCategory);
+                setCategoryDialogOpen(true);
+              }}
+            >
+              <Plus />
+              Add category
+            </Button>
+            <Button
+              onClick={() => {
+                setProductForm(emptyProduct);
+                setProductDialogOpen(true);
+              }}
+            >
+              <Plus />
+              Add product
+            </Button>
+          </div>
+
+          <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
+            <DialogContent className="max-h-[85dvh] max-w-3xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{productForm.id ? "Edit product" : "New product"}</DialogTitle>
+                <DialogDescription>
+                  Set pricing, stock, images, and variants for this product.
+                </DialogDescription>
+              </DialogHeader>
               <form
                 className="mt-4 space-y-4"
                 onSubmit={(event) => {
@@ -762,24 +790,17 @@ function AdminProductsPage() {
                   {productMutation.isPending ? "Saving..." : "Save product"}
                 </Button>
               </form>
-            </div>
+            </DialogContent>
+          </Dialog>
 
-            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold">
-                  {categoryForm.id ? "Edit category" : "New category"}
-                </h2>
-                {categoryForm.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCategoryForm(emptyCategory)}
-                  >
-                    <Plus />
-                    New
-                  </Button>
-                )}
-              </div>
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogContent className="max-h-[85dvh] max-w-xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{categoryForm.id ? "Edit category" : "New category"}</DialogTitle>
+                <DialogDescription>
+                  Categories group products on the storefront and can supply default tags.
+                </DialogDescription>
+              </DialogHeader>
               <form
                 className="mt-4 space-y-3"
                 onSubmit={(event) => {
@@ -848,11 +869,11 @@ function AdminProductsPage() {
                   {categoryMutation.isPending ? "Saving..." : "Save category"}
                 </Button>
               </form>
-            </div>
-          </section>
+            </DialogContent>
+          </Dialog>
 
-          <section className="space-y-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:space-y-0">
-            <div className="shrink-0 rounded-md border border-border bg-card p-4 shadow-sm">
+          <section className="space-y-4">
+            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -885,11 +906,7 @@ function AdminProductsPage() {
               ) : null}
             </div>
 
-            <div
-              className="space-y-4 outline-none xl:mt-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable] xl:focus-visible:ring-2 xl:focus-visible:ring-inset xl:focus-visible:ring-ring"
-              tabIndex={0}
-              aria-label="Scrollable products and categories"
-            >
+            <div className="space-y-4">
               <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
                 <Table>
                   <TableHeader>
@@ -990,7 +1007,7 @@ function AdminProductsPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() =>
+                                onClick={() => {
                                   setProductForm({
                                     id: product.id,
                                     name: product.name,
@@ -1022,8 +1039,9 @@ function AdminProductsPage() {
                                         imageUrl: v.image_url ?? "",
                                         isActive: v.is_active,
                                       })),
-                                  })
-                                }
+                                  });
+                                  setProductDialogOpen(true);
+                                }}
                               >
                                 <Edit />
                                 Edit
@@ -1069,7 +1087,7 @@ function AdminProductsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
+                            onClick={() => {
                               setCategoryForm({
                                 id: category.id,
                                 name: category.name,
@@ -1077,8 +1095,9 @@ function AdminProductsPage() {
                                 imageUrl: category.image_url ?? "",
                                 sortOrder: category.sort_order,
                                 tags: (category.tags ?? []).join(", "),
-                              })
-                            }
+                              });
+                              setCategoryDialogOpen(true);
+                            }}
                           >
                             <Edit />
                             Edit
