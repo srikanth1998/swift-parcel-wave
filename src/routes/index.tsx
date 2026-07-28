@@ -201,7 +201,7 @@ function Home() {
                 <div className="relative">
                   <div className="h-16 w-16 overflow-hidden rounded-full bg-muted ring-2 ring-primary/10 sm:h-20 sm:w-20">
                     <img
-                      src={categoryImage(c.slug)}
+                      src={c.image_url || categoryImage(c.slug)}
                       alt=""
                       className="h-full w-full object-cover transition-transform group-hover:scale-105"
                     />
