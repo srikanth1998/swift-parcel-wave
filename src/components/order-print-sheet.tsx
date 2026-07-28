@@ -29,7 +29,7 @@ export function OrderPrintSheet({
       <div className="mx-auto max-w-3xl bg-white p-8 text-black">
         <div className="flex items-start justify-between border-b border-black/20 pb-4">
           <div>
-            <div className="text-xl font-bold">FEABazaar</div>
+            <div className="text-xl font-bold">FEA Bazaar</div>
             <div className="text-sm">Order packing slip</div>
             {distributorName && (
               <div className="text-sm text-black/70">Fulfilled by: {distributorName}</div>

@@ -64,7 +64,7 @@ const REQUEST_STATUS_BADGE: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_distributor/distributor/inventory")({
-  head: () => ({ meta: [{ title: "Inventory - FEABazaar distributor" }] }),
+  head: () => ({ meta: [{ title: "Inventory - FEA Bazaar distributor" }] }),
   component: DistributorInventoryPage,
 });
 

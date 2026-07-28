@@ -68,7 +68,7 @@ export function SiteHeader() {
       {/* Top row */}
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 md:gap-6">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img src={logoUrl} alt="FEABazaar" className="h-10 w-auto md:h-12" />
+          <img src={logoUrl} alt="FEA Bazaar" className="h-10 w-auto md:h-12" />
         </Link>
 
         {/* Search — desktop/tablet */}

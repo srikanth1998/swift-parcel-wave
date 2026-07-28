@@ -9,7 +9,7 @@ import { Reveal } from "@/components/reveal";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/_authenticated/orders")({
-  head: () => ({ meta: [{ title: "My orders — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "My orders — FEA Bazaar" }] }),
   component: MyOrders,
 });
 

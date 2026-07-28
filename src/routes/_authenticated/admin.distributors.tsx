@@ -74,7 +74,7 @@ const PINCODE_RE = /^\d{6}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const Route = createFileRoute("/_authenticated/admin/distributors")({
-  head: () => ({ meta: [{ title: "Distributors - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Distributors - FEA Bazaar" }] }),
   component: AdminDistributorsPage,
 });
 
@@ -587,7 +587,7 @@ function AdminDistributorsPage() {
             <DialogTitle>Approve selected requests?</DialogTitle>
             <DialogDescription>
               This will send the full requested quantity for {selectedRequests.length}{" "}
-              {selectedRequests.length === 1 ? "request" : "requests"} from FEABazaar — Main
+              {selectedRequests.length === 1 ? "request" : "requests"} from FEA Bazaar — Main
               Warehouse ({selectedRequestedQty} total units).
             </DialogDescription>
           </DialogHeader>

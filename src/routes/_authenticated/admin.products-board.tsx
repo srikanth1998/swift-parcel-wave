@@ -77,7 +77,7 @@ function toPayload(id: string, row: RowEdit) {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/products-board")({
-  head: () => ({ meta: [{ title: "Products board - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Products board - FEA Bazaar" }] }),
   component: AdminProductsBoardPage,
 });
 

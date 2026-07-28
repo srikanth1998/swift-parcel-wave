@@ -79,7 +79,7 @@ function fromInputDateTime(value: string): string | null {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/coupons")({
-  head: () => ({ meta: [{ title: "Coupons - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Coupons - FEA Bazaar" }] }),
   component: AdminCouponsPage,
 });
 

@@ -27,7 +27,7 @@ import { toast } from "sonner";
 import { MapPin } from "lucide-react";
 
 export const Route = createFileRoute("/checkout")({
-  head: () => ({ meta: [{ title: "Checkout — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Checkout — FEA Bazaar" }] }),
   component: Checkout,
 });
 

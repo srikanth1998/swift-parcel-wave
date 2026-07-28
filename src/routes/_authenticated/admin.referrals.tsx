@@ -67,7 +67,7 @@ const STATUS_CLASS: Record<Exclude<StatusFilter, "all">, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/admin/referrals")({
-  head: () => ({ meta: [{ title: "Referral Management - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Referral Management - FEA Bazaar" }] }),
   component: AdminReferralPage,
 });
 

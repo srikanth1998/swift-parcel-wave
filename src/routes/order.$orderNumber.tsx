@@ -44,7 +44,7 @@ export const Route = createFileRoute("/order/$orderNumber")({
   },
   head: ({ params }) => ({
     meta: [
-      { title: `Order ${params.orderNumber} — FEABazaar` },
+      { title: `Order ${params.orderNumber} — FEA Bazaar` },
       { name: "referrer", content: "no-referrer" },
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
@@ -125,7 +125,7 @@ function OrderPage() {
               <div>
                 <div className="font-semibold">Your order is out for delivery</div>
                 <div className="text-emerald-700/90">
-                  Your FEABazaar order has been packed and handed to our delivery partner.
+                  Your FEA Bazaar order has been packed and handed to our delivery partner.
                 </div>
               </div>
             </div>

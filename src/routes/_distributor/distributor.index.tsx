@@ -19,7 +19,7 @@ import { formatCents } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/order-status";
 
 export const Route = createFileRoute("/_distributor/distributor/")({
-  head: () => ({ meta: [{ title: "Distributor dashboard - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Distributor dashboard - FEA Bazaar" }] }),
   component: DistributorDashboard,
 });
 

@@ -45,7 +45,7 @@ const ORDER_STATUS_OPTIONS: OrderStatus[] = [
 const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = ["pending", "confirmed", "failed", "refunded"];
 
 export const Route = createFileRoute("/_authenticated/admin/orders")({
-  head: () => ({ meta: [{ title: "Order queue - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Order queue - FEA Bazaar" }] }),
   component: AdminOrdersPage,
 });
 

@@ -36,7 +36,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 export const STATUS_NOTIFICATION: Record<OrderStatus, { title: string; body: string } | null> = {
   order_placed: {
     title: "Order received",
-    body: "Thanks! We've received your FEABazaar order.",
+    body: "Thanks! We've received your FEA Bazaar order.",
   },
   payment_confirmed: {
     title: "Payment confirmed",
@@ -60,11 +60,11 @@ export const STATUS_NOTIFICATION: Record<OrderStatus, { title: string; body: str
   },
   sent_for_delivery: {
     title: "Out for delivery",
-    body: "Your FEABazaar order is out for delivery.",
+    body: "Your FEA Bazaar order is out for delivery.",
   },
   completed: {
     title: "Order completed",
-    body: "Your FEABazaar order has been completed.",
+    body: "Your FEA Bazaar order has been completed.",
   },
   cancelled: {
     title: "Order cancelled",

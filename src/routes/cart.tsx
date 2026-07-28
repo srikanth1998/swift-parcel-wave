@@ -14,7 +14,7 @@ import { toast } from "sonner";
 const REMOVE_ANIM_MS = 200;
 
 export const Route = createFileRoute("/cart")({
-  head: () => ({ meta: [{ title: "Your cart — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Your cart — FEA Bazaar" }] }),
   component: CartPage,
 });
 

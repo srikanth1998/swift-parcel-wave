@@ -13,7 +13,7 @@ export type StoreSettings = {
 // Mirrors the DB defaults in 20260712120000_store_settings.sql. Used as a
 // fallback if the settings row is missing so checkout never breaks.
 export const SETTINGS_DEFAULTS: StoreSettings = {
-  storeName: "FEABazaar",
+  storeName: "FEA Bazaar",
   supportEmail: null,
   supportPhone: null,
   taxRateBps: 500,
