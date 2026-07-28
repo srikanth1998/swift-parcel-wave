@@ -272,7 +272,7 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
       supabaseAdmin
         .from("products")
         .select(
-          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, tags, created_at, updated_at, categories(slug, name)",
+          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, tags, has_variants, created_at, updated_at, categories(slug, name), product_variants(id, option_name, option_value, price_cents, mrp_cents, stock_qty, image_url, is_active, sort_order)",
         )
         .order("name", { ascending: true }),
     ]);
@@ -306,6 +306,23 @@ const productInputSchema = z.object({
   isActive: z.boolean(),
   isFeatured: z.boolean(),
   tags: z.array(z.string().trim().min(1).max(60)).max(6).optional().default([]),
+  hasVariants: z.boolean().optional().default(false),
+  variants: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(),
+        optionName: z.string().trim().min(1).max(40).optional().default("Weight"),
+        optionValue: z.string().trim().min(1).max(60),
+        priceRupees: z.number().min(0).max(1_000_000),
+        mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
+        stockQty: z.number().int().min(0).max(1_000_000),
+        imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
+        isActive: z.boolean().optional().default(true),
+      }),
+    )
+    .max(30)
+    .optional()
+    .default([]),
 });
 
 export const upsertAdminProduct = createServerFn({ method: "POST" })
@@ -331,16 +348,55 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
       is_active: data.isActive,
       is_featured: data.isFeatured,
       tags: data.tags ?? [],
+      has_variants: data.hasVariants ?? false,
     };
+
+    const variantRowsFor = (productId: string) =>
+      (data.variants ?? []).map((variant, index) => {
+        const vPrice = centsFromRupees(variant.priceRupees);
+        const vMrp = variant.mrpRupees ? centsFromRupees(variant.mrpRupees) : null;
+        return {
+          ...(variant.id ? { id: variant.id } : {}),
+          product_id: productId,
+          option_name: variant.optionName || "Weight",
+          option_value: variant.optionValue,
+          price_cents: vPrice,
+          mrp_cents: vMrp && vMrp > vPrice ? vMrp : null,
+          stock_qty: variant.stockQty,
+          image_url: variant.imageUrl || null,
+          is_active: variant.isActive ?? true,
+          sort_order: index,
+        };
+      });
+
+    async function syncVariants(productId: string) {
+      const rows = variantRowsFor(productId);
+      const keepIds = rows.map((r) => ("id" in r ? (r.id as string) : "")).filter(Boolean);
+      let deleteQuery = supabaseAdmin.from("product_variants").delete().eq("product_id", productId);
+      if (keepIds.length > 0) deleteQuery = deleteQuery.not("id", "in", `(${keepIds.join(",")})`);
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError) throw new Error(deleteError.message);
+      if (rows.length === 0) return;
+      const { error: upsertError } = await supabaseAdmin
+        .from("product_variants")
+        .upsert(rows, { onConflict: "id" });
+      if (upsertError) throw new Error(upsertError.message);
+    }
 
     if (data.id) {
       const { error } = await supabaseAdmin.from("products").update(row).eq("id", data.id);
       if (error) throw new Error(error.message);
+      await syncVariants(data.id);
       return { ok: true };
     }
 
-    const { error: insertError } = await supabaseAdmin.from("products").insert(row);
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("products")
+      .insert(row)
+      .select("id")
+      .single();
     if (insertError) throw new Error(insertError.message);
+    if (inserted) await syncVariants(inserted.id);
 
     // The database stock-sync trigger creates the Main Warehouse inventory
     // row from products.stock_qty in the same transaction.
