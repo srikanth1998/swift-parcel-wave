@@ -655,6 +655,27 @@ function AdminProductsPage() {
                   placeholder="Search products"
                 />
               </div>
+              {selectedIds.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.length} selected
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                      Clear
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 />
+                      Delete selected
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div
@@ -666,6 +687,14 @@ function AdminProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={(checked) => toggleAllVisible(checked === true)}
+                          aria-label="Select all products"
+                          disabled={visibleIds.length === 0}
+                        />
+                      </TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead className="text-right">Price</TableHead>
@@ -677,13 +706,13 @@ function AdminProductsPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : products.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
                             No products found.
                           </div>
@@ -692,6 +721,15 @@ function AdminProductsPage() {
                     ) : (
                       products.map((product) => (
                         <TableRow key={product.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.includes(product.id)}
+                              onCheckedChange={(checked) =>
+                                toggleProduct(product.id, checked === true)
+                              }
+                              aria-label={`Select ${product.name}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="font-medium">{product.name}</div>
                             <div className="text-xs text-muted-foreground">{product.slug}</div>
