@@ -314,6 +314,19 @@ export const placeOrder = createServerFn({ method: "POST" })
       console.error("[placeOrder] stock decrement failed:", err);
     }
 
+    // Variant-level stock is tracked on product_variants, decremented separately.
+    try {
+      const { error: variantStockErr } = await supabaseAdmin.rpc(
+        "record_order_variant_stock_decrement",
+        { _order_id: order.id },
+      );
+      if (variantStockErr) {
+        console.error("[placeOrder] variant stock decrement failed:", variantStockErr.message);
+      }
+    } catch (err) {
+      console.error("[placeOrder] variant stock decrement failed:", err);
+    }
+
     // Record wallet transaction to prevent double-spend
     if (walletCredit > 0 && userId) {
       try {
