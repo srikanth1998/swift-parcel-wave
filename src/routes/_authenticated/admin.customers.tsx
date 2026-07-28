@@ -22,7 +22,7 @@ import { formatCents } from "@/lib/format";
 type Role = "customer" | "staff" | "admin";
 
 export const Route = createFileRoute("/_authenticated/admin/customers")({
-  head: () => ({ meta: [{ title: "Customers - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Customers - FEA Bazaar" }] }),
   component: AdminCustomersPage,
 });
 

@@ -95,25 +95,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FEABazaar — Fresh groceries delivered" },
+      { title: "FEA Bazaar — Fresh groceries delivered" },
       {
         name: "description",
         content:
-          "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
+          "Order fresh groceries from FEA Bazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
       },
-      { property: "og:title", content: "FEABazaar — Fresh groceries delivered" },
+      { property: "og:title", content: "FEA Bazaar — Fresh groceries delivered" },
       {
         property: "og:description",
         content:
-          "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
+          "Order fresh groceries from FEA Bazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "FEABazaar — Fresh groceries delivered" },
+      { name: "twitter:title", content: "FEA Bazaar — Fresh groceries delivered" },
       {
         name: "twitter:description",
         content:
-          "Order fresh groceries from FEABazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
+          "Order fresh groceries from FEA Bazaar. Handpicked produce, dairy, pantry staples, and more, delivered to your door.",
       },
       {
         property: "og:image",
@@ -190,7 +190,7 @@ function RootComponent() {
             </RouteTransition>
           </main>
           <footer className="hidden border-t border-border bg-secondary/40 py-8 text-center text-xs text-muted-foreground md:block">
-            © {new Date().getFullYear()} FEABazaar · Fresh groceries, packed with care · Made in
+            © {new Date().getFullYear()} FEA Bazaar · Fresh groceries, packed with care · Made in
             India
           </footer>
           <MobileBottomNav />

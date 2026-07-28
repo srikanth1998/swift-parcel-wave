@@ -10,7 +10,7 @@ export const Route = createFileRoute("/update-password")({
   // The recovery token arrives in the URL fragment, which only exists in the
   // browser — there is nothing for the server to render.
   ssr: false,
-  head: () => ({ meta: [{ title: "Set a new password — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Set a new password — FEA Bazaar" }] }),
   component: UpdatePasswordPage,
 });
 

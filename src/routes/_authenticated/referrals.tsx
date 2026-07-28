@@ -48,7 +48,7 @@ const STATUS_CLASS: Record<Exclude<StatusFilter, "all">, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/referrals")({
-  head: () => ({ meta: [{ title: "Referrals - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Referrals - FEA Bazaar" }] }),
   component: ReferralDashboard,
 });
 
@@ -98,8 +98,8 @@ function ReferralDashboard() {
     if (!referralLink) return;
     if (navigator.share) {
       await navigator.share({
-        title: "FEABazaar referral",
-        text: "Use my FEABazaar referral code.",
+        title: "FEA Bazaar referral",
+        text: "Use my FEA Bazaar referral code.",
         url: referralLink,
       });
       return;

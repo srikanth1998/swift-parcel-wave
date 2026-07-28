@@ -11,7 +11,7 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { ref?: string } => ({
     ...(typeof search.ref === "string" ? { ref: search.ref } : {}),
   }),
-  head: () => ({ meta: [{ title: "Sign in — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Sign in — FEA Bazaar" }] }),
   component: AuthPage,
 });
 
@@ -83,7 +83,7 @@ function AuthPage() {
         </h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">
           {mode === "sign_in"
-            ? "Sign in to your FEABazaar account"
+            ? "Sign in to your FEA Bazaar account"
             : "Sign up to track your orders"}
         </p>
 

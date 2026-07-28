@@ -52,7 +52,7 @@ function getInventoryStatus(stockQty: number): InventoryStatus {
 export const Route = createFileRoute("/_authenticated/admin/inventory")({
   head: () => ({
     meta: [
-      { title: "Inventory - FEABazaar" },
+      { title: "Inventory - FEA Bazaar" },
       {
         name: "description",
         content: "Monitor product stock and record auditable inventory adjustments.",

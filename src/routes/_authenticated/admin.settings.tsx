@@ -20,7 +20,7 @@ type SettingsForm = {
 };
 
 export const Route = createFileRoute("/_authenticated/admin/settings")({
-  head: () => ({ meta: [{ title: "Store settings - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Store settings - FEA Bazaar" }] }),
   component: AdminSettingsPage,
 });
 

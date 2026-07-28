@@ -85,7 +85,7 @@ const FILTER_STATUS_OPTIONS: OrderStatus[] = [
 ];
 
 export const Route = createFileRoute("/_distributor/distributor/orders")({
-  head: () => ({ meta: [{ title: "Orders - FEABazaar distributor" }] }),
+  head: () => ({ meta: [{ title: "Orders - FEA Bazaar distributor" }] }),
   component: DistributorOrdersPage,
 });
 

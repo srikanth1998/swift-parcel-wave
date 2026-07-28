@@ -18,7 +18,7 @@ import { formatCents } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/order-status";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Back office - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Back office - FEA Bazaar" }] }),
   component: AdminDashboard,
 });
 
@@ -30,7 +30,7 @@ function AdminDashboard() {
 
   if (error) {
     return (
-      <AdminPageFrame title="Back office" description="Operational controls for FEABazaar.">
+      <AdminPageFrame title="Back office" description="Operational controls for FEA Bazaar.">
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error instanceof Error ? error.message : "Back office could not load."}
         </div>

@@ -29,7 +29,7 @@ import {
 } from "@/lib/profile.functions";
 
 export const Route = createFileRoute("/_authenticated/profile")({
-  head: () => ({ meta: [{ title: "My account — FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "My account — FEA Bazaar" }] }),
   component: ProfilePage,
 });
 

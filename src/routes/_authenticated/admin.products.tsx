@@ -91,7 +91,7 @@ function parseTags(input: string): string[] {
 }
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
-  head: () => ({ meta: [{ title: "Catalog - FEABazaar" }] }),
+  head: () => ({ meta: [{ title: "Catalog - FEA Bazaar" }] }),
   component: AdminProductsPage,
 });
 
