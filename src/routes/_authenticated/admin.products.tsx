@@ -906,11 +906,7 @@ function AdminProductsPage() {
               ) : null}
             </div>
 
-            <div
-              className="space-y-4 outline-none xl:mt-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:overscroll-contain xl:pr-2 xl:[scrollbar-gutter:stable] xl:focus-visible:ring-2 xl:focus-visible:ring-inset xl:focus-visible:ring-ring"
-              tabIndex={0}
-              aria-label="Scrollable products and categories"
-            >
+            <div className="space-y-4">
               <div className="overflow-hidden rounded-md border border-border bg-card shadow-sm">
                 <Table>
                   <TableHeader>
