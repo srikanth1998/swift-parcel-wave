@@ -68,6 +68,8 @@ type VariantForm = {
   optionName: string;
   optionValue: string;
   sku: string;
+  /** True once an admin typed a custom SKU; auto-generation stops for that row. */
+  skuTouched?: boolean;
   priceRupees: number;
   mrpRupees: number;
   stockQty: number;
@@ -129,6 +131,38 @@ function parseTags(input: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean)
     .slice(0, 6);
+}
+
+function skuToken(input: string, maxLength: number) {
+  return input
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "")
+    .slice(0, maxLength);
+}
+
+/** Builds a readable SKU like RICE-500G from the product name + variant name. */
+function buildVariantSku(productName: string, optionValue: string, index: number) {
+  const base = skuToken(productName, 10) || "ITEM";
+  const suffix = skuToken(optionValue, 8) || `V${index + 1}`;
+  return `${base}-${suffix}`;
+}
+
+/** Re-generates SKUs for every variant the admin has not manually edited. */
+function withAutoSkus(productName: string, variants: VariantForm[]): VariantForm[] {
+  const taken = new Set(
+    variants.filter((v) => v.skuTouched && v.sku.trim()).map((v) => v.sku.trim().toUpperCase()),
+  );
+  return variants.map((variant, index) => {
+    if (variant.skuTouched && variant.sku.trim()) return variant;
+    let sku = buildVariantSku(productName, variant.optionValue, index);
+    let attempt = 2;
+    while (taken.has(sku)) {
+      sku = `${buildVariantSku(productName, variant.optionValue, index)}-${attempt}`;
+      attempt += 1;
+    }
+    taken.add(sku);
+    return { ...variant, sku };
+  });
 }
 
 function variantValidationMessage(variants: VariantForm[]) {
