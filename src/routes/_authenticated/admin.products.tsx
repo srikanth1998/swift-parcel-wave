@@ -790,24 +790,17 @@ function AdminProductsPage() {
                   {productMutation.isPending ? "Saving..." : "Save product"}
                 </Button>
               </form>
-            </div>
+            </DialogContent>
+          </Dialog>
 
-            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold">
-                  {categoryForm.id ? "Edit category" : "New category"}
-                </h2>
-                {categoryForm.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCategoryForm(emptyCategory)}
-                  >
-                    <Plus />
-                    New
-                  </Button>
-                )}
-              </div>
+          <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+            <DialogContent className="max-h-[85dvh] max-w-xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{categoryForm.id ? "Edit category" : "New category"}</DialogTitle>
+                <DialogDescription>
+                  Categories group products on the storefront and can supply default tags.
+                </DialogDescription>
+              </DialogHeader>
               <form
                 className="mt-4 space-y-3"
                 onSubmit={(event) => {
