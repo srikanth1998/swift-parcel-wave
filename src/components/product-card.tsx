@@ -6,6 +6,7 @@ import { formatCents } from "@/lib/format";
 import { toast } from "sonner";
 import { Heart, Plus, ImageOff } from "lucide-react";
 import { QuantityStepper } from "./quantity-stepper";
+import { cartLineId } from "@/hooks/use-cart";
 
 export type ProductCardData = {
   id: string;
@@ -16,11 +17,12 @@ export type ProductCardData = {
   image_url: string | null;
   brand?: string | null;
   mrp_cents?: number | null;
+  has_variants?: boolean | null;
 };
 
 export function ProductCard({ product }: { product: ProductCardData }) {
   const { add, items, setQty } = useCart();
-  const inCart = items.find((i) => i.productId === product.id);
+  const inCart = items.find((i) => i.productId === product.id && !i.variantId);
   const [heartBumpTick, setHeartBumpTick] = useState(0);
 
   // Calculate discount from real mrp_cents field
@@ -95,12 +97,23 @@ export function ProductCard({ product }: { product: ProductCardData }) {
               </div>
             )}
           </div>
-          {inCart ? (
+          {product.has_variants ? (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 rounded-full border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary hover:text-primary-foreground"
+            >
+              <Link to="/product/$slug" params={{ slug: product.slug }}>
+                Options
+              </Link>
+            </Button>
+          ) : inCart ? (
             <div className="animate-in zoom-in-95 fade-in duration-200 ease-out">
               <QuantityStepper
                 size="sm"
                 value={inCart.qty}
-                onChange={(n) => setQty(product.id, n)}
+                onChange={(n) => setQty(cartLineId({ productId: product.id }), n)}
               />
             </div>
           ) : (
