@@ -466,6 +466,7 @@ function AdminProductsPage() {
                           </div>
                           <Field label="Variant image (optional)">
                             <ImageUploadField
+                              folder="products"
                               value={variant.imageUrl}
                               onChange={(imageUrl) => updateVariant(index, { imageUrl })}
                             />
