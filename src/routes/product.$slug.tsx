@@ -269,7 +269,7 @@ function ProductPage() {
               </div>
             )}
 
-            {hasVariants && (
+            {hasVariants && variants.length > 0 && (
               <div className="mt-5">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {variants[0].option_name}
