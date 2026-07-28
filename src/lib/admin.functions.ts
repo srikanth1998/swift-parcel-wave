@@ -418,18 +418,17 @@ export const deleteAdminProducts = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const ids = data.ids;
 
-    const detach = async (
-      table: "order_items",
-      column: "product_id" | "replacement_product_id",
-    ) => {
-      const { error } = await supabaseAdmin
-        .from(table)
-        .update({ [column]: null })
-        .in(column, ids);
-      if (error) throw new Error(error.message);
-    };
-    await detach("order_items", "product_id");
-    await detach("order_items", "replacement_product_id");
+    const { error: detachError } = await supabaseAdmin
+      .from("order_items")
+      .update({ product_id: null })
+      .in("product_id", ids);
+    if (detachError) throw new Error(detachError.message);
+
+    const { error: detachReplacementError } = await supabaseAdmin
+      .from("order_items")
+      .update({ replacement_product_id: null })
+      .in("replacement_product_id", ids);
+    if (detachReplacementError) throw new Error(detachReplacementError.message);
 
     for (const table of [
       "product_variants",
