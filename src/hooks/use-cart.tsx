@@ -22,6 +22,10 @@ export type CartItem = {
   variantId?: string | null;
   /** Human label of the selected variant, e.g. "5kg". */
   variantLabel?: string | null;
+  /** SKU snapshot shown throughout cart and checkout. */
+  variantSku?: string | null;
+  /** Last known sellable stock; the server revalidates this during checkout. */
+  availableStock?: number;
 };
 
 /** Stable identity of a cart line: a product + its selected variant. */
@@ -70,12 +74,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const id = cartLineId(item);
     setItems((prev) => {
       const existing = prev.find((p) => cartLineId(p) === id);
+      const maxQty = Math.max(1, Math.min(99, item.availableStock ?? 99));
       if (existing) {
         return prev.map((p) =>
-          cartLineId(p) === id ? { ...p, qty: Math.min(99, p.qty + qty) } : p,
+          cartLineId(p) === id
+            ? { ...p, ...item, qty: Math.min(maxQty, p.qty + qty) }
+            : p,
         );
       }
-      return [...prev, { ...item, qty }];
+      return [...prev, { ...item, qty: Math.min(maxQty, qty) }];
     });
   }, []);
 
@@ -83,7 +90,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) =>
       qty <= 0
         ? prev.filter((p) => cartLineId(p) !== lineId)
-        : prev.map((p) => (cartLineId(p) === lineId ? { ...p, qty: Math.min(99, qty) } : p)),
+        : prev.map((p) =>
+            cartLineId(p) === lineId
+              ? {
+                  ...p,
+                  qty: Math.min(Math.max(1, p.availableStock ?? 99), 99, qty),
+                }
+              : p,
+          ),
     );
   }, []);
 

@@ -182,6 +182,11 @@ function OrderPage() {
                 <li key={it.id} className="flex justify-between gap-2 py-2 text-sm">
                   <span>
                     {it.ordered_qty} × {it.name_snapshot}
+                    {it.variant_sku && (
+                      <span className="block text-xs text-muted-foreground">
+                        SKU: {it.variant_sku}
+                      </span>
+                    )}
                   </span>
                   <span className="font-medium">
                     {formatCents(it.unit_price_cents * it.ordered_qty)}

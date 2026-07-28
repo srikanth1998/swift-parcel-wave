@@ -455,6 +455,7 @@ function Checkout() {
               <span className="min-w-0 truncate">
                 {i.qty} × {i.name}
                 {i.variantLabel ? ` – ${i.variantLabel}` : ""}
+                {i.variantSku ? ` (${i.variantSku})` : ""}
               </span>
               <span className="font-medium whitespace-nowrap">
                 {formatCents(i.priceCents * i.qty)}

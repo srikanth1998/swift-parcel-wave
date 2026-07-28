@@ -365,6 +365,11 @@ function DistributorOrdersPage() {
                                       >
                                         <span>
                                           {item.ordered_qty} x {item.name_snapshot}
+                                          {item.variant_sku && (
+                                            <span className="block text-xs text-muted-foreground">
+                                              SKU: {item.variant_sku}
+                                            </span>
+                                          )}
                                           {item.is_unavailable && (
                                             <Badge variant="outline" className="ml-2 border-red-200 bg-red-50 text-red-700">
                                               Unavailable

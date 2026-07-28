@@ -84,16 +84,20 @@ export const getProduct = createServerFn({ method: "GET" })
       id: string;
       option_name: string;
       option_value: string;
+      sku: string;
       price_cents: number;
       mrp_cents: number | null;
       stock_qty: number;
+      low_stock_threshold: number;
       image_url: string | null;
       sort_order: number;
     }[] = [];
     if (row.has_variants) {
       const { data: variantRows, error: variantError } = await supabase
         .from("product_variants")
-        .select("id, option_name, option_value, price_cents, mrp_cents, stock_qty, image_url, sort_order")
+        .select(
+          "id, option_name, option_value, sku, price_cents, mrp_cents, stock_qty, low_stock_threshold, image_url, sort_order",
+        )
         .eq("product_id", row.id)
         .eq("is_active", true)
         .order("sort_order", { ascending: true });

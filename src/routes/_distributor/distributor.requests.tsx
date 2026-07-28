@@ -180,7 +180,10 @@ function SupplierRequestsQueue({ hubDistributorId }: { hubDistributorId: string 
                       <TableCell className="font-medium">{request.requestingDistributorName}</TableCell>
                       <TableCell>
                         <div className="font-medium">{request.productName}</div>
-                        <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {request.unitLabel}
+                          {request.variantSku ? ` · ${request.variantSku}` : ""}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">{request.requestedQty}</TableCell>
                       <TableCell className="max-w-56 truncate text-sm text-muted-foreground">
@@ -237,7 +240,10 @@ function SupplierRequestsQueue({ hubDistributorId }: { hubDistributorId: string 
                       <TableCell className="font-medium">{request.requestingDistributorName}</TableCell>
                       <TableCell>
                         <div className="font-medium">{request.productName}</div>
-                        <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {request.unitLabel}
+                          {request.variantSku ? ` · ${request.variantSku}` : ""}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">{request.requestedQty}</TableCell>
                       <TableCell className="text-right">{request.approvedQty ?? "—"}</TableCell>

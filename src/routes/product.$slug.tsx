@@ -148,8 +148,8 @@ function ProductPage() {
   if (!product) return null;
 
   const variants = product.variants ?? [];
-  const hasVariants = variants.length > 0;
-  const selectedVariant = hasVariants
+  const hasVariants = product.has_variants;
+  const selectedVariant = variants.length > 0
     ? (variants.find((v) => v.id === selectedVariantId) ??
       variants.find((v) => v.stock_qty > 0) ??
       variants[0])
@@ -158,7 +158,11 @@ function ProductPage() {
   const priceCents = selectedVariant ? selectedVariant.price_cents : product.price_cents;
   const mrpCents = selectedVariant ? selectedVariant.mrp_cents : product.mrp_cents;
   const imageUrl = selectedVariant?.image_url || product.image_url;
-  const stockQty = selectedVariant ? selectedVariant.stock_qty : product.stock_qty;
+  const stockQty = selectedVariant
+    ? selectedVariant.stock_qty
+    : hasVariants
+      ? 0
+      : product.stock_qty;
   const outOfStock = stockQty <= 0;
 
   // Calculate discount from real mrp_cents field
@@ -246,13 +250,22 @@ function ProductPage() {
               )}
             </div>
             {outOfStock ? (
-              <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+              <div
+                className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-destructive"
+                aria-live="polite"
+              >
                 <span className="inline-block h-2 w-2 rounded-full bg-destructive" /> Out of stock
               </div>
             ) : (
-              <div className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-                <span className="inline-block h-2 w-2 rounded-full bg-primary" /> In stock — usually
-                packed the same day
+              <div
+                className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary"
+                aria-live="polite"
+              >
+                <span className="inline-block h-2 w-2 rounded-full bg-primary" />
+                {selectedVariant &&
+                stockQty <= selectedVariant.low_stock_threshold
+                  ? `Only ${stockQty} left`
+                  : "In stock — usually packed the same day"}
               </div>
             )}
 
@@ -271,6 +284,10 @@ function ProductPage() {
                         type="button"
                         onClick={() => setSelectedVariantId(variant.id)}
                         aria-pressed={active}
+                        aria-label={`${variant.option_value}, ${formatCents(variant.price_cents)}${
+                          soldOut ? ", out of stock" : `, ${variant.stock_qty} in stock`
+                        }`}
+                        disabled={soldOut}
                         className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
                           active
                             ? "border-primary bg-primary text-primary-foreground"
@@ -278,6 +295,9 @@ function ProductPage() {
                         } ${soldOut ? "opacity-50" : ""}`}
                       >
                         {variant.option_value}
+                        <span className="ml-1 text-[11px] font-normal">
+                          {formatCents(variant.price_cents)}
+                        </span>
                         {soldOut && <span className="ml-1 text-[10px]">(sold out)</span>}
                       </button>
                     );
@@ -287,7 +307,11 @@ function ProductPage() {
             )}
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <QuantityStepper value={qty} onChange={setQty} />
+              <QuantityStepper
+                value={Math.min(qty, Math.max(1, stockQty))}
+                max={Math.max(1, stockQty)}
+                onChange={setQty}
+              />
               <Button
                 size="lg"
                 className="rounded-full px-6"
@@ -304,8 +328,10 @@ function ProductPage() {
                       unitLabel: product.unit_label,
                       variantId: selectedVariant?.id ?? null,
                       variantLabel: selectedVariant?.option_value ?? null,
+                      variantSku: selectedVariant?.sku ?? null,
+                      availableStock: stockQty,
                     },
-                    qty,
+                    Math.min(qty, stockQty),
                   );
                   toast.success(
                     `Added ${qty} × ${product.name}${selectedVariant ? ` – ${selectedVariant.option_value}` : ""}`,

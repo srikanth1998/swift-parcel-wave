@@ -308,6 +308,11 @@ function AdminOrdersPage() {
                                       >
                                         <span>
                                           {item.ordered_qty} x {item.name_snapshot}
+                                          {item.variant_sku && (
+                                            <span className="block text-xs text-muted-foreground">
+                                              SKU: {item.variant_sku}
+                                            </span>
+                                          )}
                                         </span>
                                         <span className="font-medium">
                                           {formatCents(item.unit_price_cents * item.ordered_qty)}

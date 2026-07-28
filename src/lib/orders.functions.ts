@@ -108,10 +108,10 @@ export const placeOrder = createServerFn({ method: "POST" })
       !userId && data.guestAccessToken ? await hashGuestAccessToken(data.guestAccessToken) : null;
 
     const pub = publicClient();
-    const productIds = data.items.map((i) => i.productId);
+    const productIds = [...new Set(data.items.map((i) => i.productId))];
     const { data: products, error: prodErr } = await pub
       .from("products")
-      .select("id, name, price_cents, stock_qty")
+      .select("id, name, price_cents, stock_qty, has_variants")
       .in("id", productIds)
       .eq("is_active", true);
     if (prodErr) throw new Error(prodErr.message);
@@ -122,20 +122,30 @@ export const placeOrder = createServerFn({ method: "POST" })
 
     // Variant pricing is authoritative server-side too: look up any selected
     // variants and use their price + label instead of the parent product's.
-    const variantIds = data.items.map((i) => i.variantId).filter((v): v is string => !!v);
+    const variantIds = [
+      ...new Set(data.items.map((i) => i.variantId).filter((v): v is string => !!v)),
+    ];
     const variantMap = new Map<
       string,
-      { id: string; product_id: string; option_name: string; option_value: string; price_cents: number }
+      {
+        id: string;
+        product_id: string;
+        option_name: string;
+        option_value: string;
+        sku: string;
+        price_cents: number;
+        stock_qty: number;
+      }
     >();
     if (variantIds.length > 0) {
       const { data: variants, error: variantErr } = await pub
         .from("product_variants")
-        .select("id, product_id, option_name, option_value, price_cents")
+        .select("id, product_id, option_name, option_value, sku, price_cents, stock_qty")
         .in("id", variantIds)
         .eq("is_active", true);
       if (variantErr) throw new Error(variantErr.message);
       for (const v of variants ?? []) variantMap.set(v.id, v);
-      if (variantMap.size !== new Set(variantIds).size) {
+      if (variantMap.size !== variantIds.length) {
         throw new Error("One or more selected options are no longer available.");
       }
     }
@@ -166,12 +176,24 @@ export const placeOrder = createServerFn({ method: "POST" })
       if (variant && variant.product_id !== p.id) {
         throw new Error("Selected option does not belong to the product.");
       }
+      if (p.has_variants && !variant) {
+        throw new Error(`Select an available option for ${p.name}.`);
+      }
+      if (!p.has_variants && variant) {
+        throw new Error(`${p.name} does not accept a variant selection.`);
+      }
+      if (variant && variant.stock_qty < it.qty) {
+        throw new Error(
+          `Only ${variant.stock_qty} unit(s) of ${variant.option_value} remain in stock.`,
+        );
+      }
       const unitPrice = variant ? variant.price_cents : p.price_cents;
       subtotal += unitPrice * it.qty;
       return {
         product_id: p.id,
         variant_id: variant?.id ?? null,
         variant_label: variant ? variant.option_value : null,
+        variant_sku: variant?.sku ?? null,
         name_snapshot: variant ? `${p.name} – ${variant.option_value}` : p.name,
         unit_price_cents: unitPrice,
         ordered_qty: it.qty,
@@ -282,49 +304,46 @@ export const placeOrder = createServerFn({ method: "POST" })
       throw new Error(itemsErr.message);
     }
 
-    // Redeem before inventory and other bookkeeping. If a concurrent checkout
-    // consumes the coupon limit first, remove this order instead of silently
-    // granting an unrecorded discount.
+    // Reserve inventory before any non-inventory side effects. This RPC locks
+    // every requested variant/warehouse row and rejects the entire reservation
+    // if even one line is unavailable.
+    const { error: stockErr } = await supabaseAdmin.rpc("record_order_stock_decrement", {
+      _order_id: order.id,
+    });
+    if (stockErr) {
+      try {
+        await supabaseAdmin.from("orders").delete().eq("id", order.id);
+        await supabaseAdmin.from("delivery_addresses").delete().eq("id", addressId);
+      } catch (cleanupErr) {
+        console.error("[placeOrder] inventory cleanup failed:", cleanupErr);
+      }
+      throw new Error(stockErr.message);
+    }
+
+    // If a concurrent checkout consumes the coupon limit first, release the
+    // reservation before removing the failed order.
     if (couponId) {
       const { data: redeemed, error: redeemErr } = await supabaseAdmin.rpc("redeem_coupon_atomic", {
         _order_id: order.id,
       });
       if (redeemErr || !redeemed) {
         try {
+          const { error: releaseErr } = await supabaseAdmin.rpc("release_order_inventory", {
+            _order_id: order.id,
+          });
+          if (releaseErr) throw releaseErr;
           await supabaseAdmin.from("orders").delete().eq("id", order.id);
           await supabaseAdmin.from("delivery_addresses").delete().eq("id", addressId);
         } catch (cleanupErr) {
           console.error("[placeOrder] coupon cleanup failed:", cleanupErr);
+          throw new Error(
+            "The order could not be completed and its inventory rollback needs review.",
+          );
         }
         throw new Error(
           redeemErr?.message ?? "This coupon is no longer available. Please review your order.",
         );
       }
-    }
-
-    // Post-order bookkeeping. The order already exists, so failures here are
-    // logged but never surfaced as a checkout failure to the customer.
-    try {
-      // Decrement stock (atomic, floors at 0) and log an inventory adjustment per line.
-      const { error: stockErr } = await supabaseAdmin.rpc("record_order_stock_decrement", {
-        _order_id: order.id,
-      });
-      if (stockErr) console.error("[placeOrder] stock decrement failed:", stockErr.message);
-    } catch (err) {
-      console.error("[placeOrder] stock decrement failed:", err);
-    }
-
-    // Variant-level stock is tracked on product_variants, decremented separately.
-    try {
-      const { error: variantStockErr } = await supabaseAdmin.rpc(
-        "record_order_variant_stock_decrement",
-        { _order_id: order.id },
-      );
-      if (variantStockErr) {
-        console.error("[placeOrder] variant stock decrement failed:", variantStockErr.message);
-      }
-    } catch (err) {
-      console.error("[placeOrder] variant stock decrement failed:", err);
     }
 
     // Record wallet transaction to prevent double-spend
@@ -422,7 +441,7 @@ export const getOrderByNumber = createServerFn({ method: "GET" })
     const client = order.customer_id ? supabase : supabaseAdmin;
     const { data: items, error: itemsErr } = await client
       .from("order_items")
-      .select("id, name_snapshot, unit_price_cents, ordered_qty")
+      .select("id, name_snapshot, variant_sku, unit_price_cents, ordered_qty")
       .eq("order_id", order.id);
     if (itemsErr) throw new Error(itemsErr.message);
 

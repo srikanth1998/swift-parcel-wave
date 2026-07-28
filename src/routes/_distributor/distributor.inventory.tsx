@@ -102,14 +102,33 @@ function DistributorInventoryPage() {
   const activeItem = data?.items.find((item) => item.id === activeItemId);
 
   const pendingRequests = Object.entries(requestQtys)
-    .map(([productId, value]) => ({ productId, requestedQty: Math.floor(Number(value)) }))
-    .filter((r) => Number.isFinite(r.requestedQty) && r.requestedQty >= 1);
+    .map(([requestKey, value]) => {
+      const item = data?.items.find((candidate) => candidate.requestKey === requestKey);
+      return {
+        productId: item?.productId ?? "",
+        variantId: item?.variantId ?? null,
+        requestedQty: Math.floor(Number(value)),
+      };
+    })
+    .filter(
+      (request) =>
+        request.productId &&
+        Number.isFinite(request.requestedQty) &&
+        request.requestedQty >= 1,
+    );
 
   const mutation = useMutation({
     mutationFn: () => {
       if (!activeItem) throw new Error("Pick a product first");
       return adjustDistributorInventory({
-        data: { productId: activeItem.productId, mode, amount, reason, note: note || null },
+        data: {
+          productId: activeItem.productId,
+          variantId: activeItem.variantId,
+          mode,
+          amount,
+          reason,
+          note: note || null,
+        },
       });
     },
     onSuccess: async () => {
@@ -246,10 +265,13 @@ function DistributorInventoryPage() {
                       </TableRow>
                     ) : (
                       items.map((item) => (
-                        <TableRow key={item.id}>
+                        <TableRow key={item.requestKey}>
                           <TableCell>
                             <div className="font-medium">{item.name}</div>
-                            <div className="text-xs text-muted-foreground">{item.unitLabel}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {item.unitLabel}
+                              {item.sku ? ` · ${item.sku}` : ""}
+                            </div>
                           </TableCell>
                           <TableCell>{item.category ?? "None"}</TableCell>
                           <TableCell className="text-right">{formatCents(item.priceCents)}</TableCell>
@@ -266,16 +288,16 @@ function DistributorInventoryPage() {
                               type="number"
                               min={0}
                               inputMode="numeric"
-                              value={requestQtys[item.productId] ?? ""}
+                              value={requestQtys[item.requestKey] ?? ""}
                               onChange={(event) =>
                                 setRequestQtys((prev) => ({
                                   ...prev,
-                                  [item.productId]: event.target.value,
+                                  [item.requestKey]: event.target.value,
                                 }))
                               }
                               placeholder="0"
                               className="ml-auto h-8 w-20 text-right"
-                              aria-label={`Request quantity for ${item.name}`}
+                              aria-label={`Request quantity for ${item.name} ${item.unitLabel}`}
                             />
                           </TableCell>
                           <TableCell className="text-right">
@@ -310,6 +332,11 @@ function DistributorInventoryPage() {
                     >
                       <div className="min-w-0">
                         <div className="truncate font-medium">{adjustment.productName}</div>
+                        {adjustment.variantLabel && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {adjustment.variantLabel}
+                          </div>
+                        )}
                         <div className="text-xs capitalize text-muted-foreground">
                           {adjustment.reason} · {format(new Date(adjustment.created_at), "MMM d, h:mm a")}
                         </div>
@@ -364,7 +391,10 @@ function DistributorInventoryPage() {
                       <TableRow key={request.id}>
                         <TableCell>
                           <div className="font-medium">{request.productName}</div>
-                          <div className="text-xs text-muted-foreground">{request.unitLabel}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {request.unitLabel}
+                            {request.variantSku ? ` · ${request.variantSku}` : ""}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">{request.requestedQty}</TableCell>
                         <TableCell className="text-right">{request.approvedQty ?? "—"}</TableCell>

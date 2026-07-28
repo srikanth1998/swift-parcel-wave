@@ -414,7 +414,7 @@ export const getDistributorOrders = createServerFn({ method: "GET" })
       ? await supabaseAdmin
           .from("order_items")
           .select(
-            "id, order_id, product_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable, replacement_product_id",
+            "id, order_id, product_id, name_snapshot, variant_sku, ordered_qty, picked_qty, unit_price_cents, is_unavailable, replacement_product_id",
           )
           .in("order_id", orderIds)
       : { data: [], error: null };
@@ -510,11 +510,14 @@ export const getDistributorInventory = createServerFn({ method: "GET" }).handler
   const [
     { data: allProducts, error: productsError },
     { data: inventory, error: invError },
+    { data: variantInventory, error: variantInvError },
     { data: adjustments, error: adjError },
   ] = await Promise.all([
     supabaseAdmin
       .from("products")
-      .select("id, name, slug, unit_label, price_cents, is_active, categories(name)")
+      .select(
+        "id, name, slug, unit_label, price_cents, is_active, has_variants, categories(name), product_variants(id, option_value, sku, price_cents, stock_qty, is_active, sort_order)",
+      )
       .eq("is_active", true)
       .order("name", { ascending: true }),
     supabaseAdmin
@@ -522,37 +525,114 @@ export const getDistributorInventory = createServerFn({ method: "GET" }).handler
       .select("id, product_id, stock_qty")
       .eq("distributor_id", distributorId),
     supabaseAdmin
+      .from("distributor_variant_inventory")
+      .select("id, product_id, variant_id, stock_qty")
+      .eq("distributor_id", distributorId),
+    supabaseAdmin
       .from("inventory_adjustments")
-      .select("id, product_id, delta, previous_qty, new_qty, reason, note, created_at")
+      .select(
+        "id, product_id, variant_id, delta, previous_qty, new_qty, reason, note, created_at",
+      )
       .eq("distributor_id", distributorId)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
   if (productsError) throw new Error(productsError.message);
   if (invError) throw new Error(invError.message);
+  if (variantInvError) throw new Error(variantInvError.message);
   if (adjError) throw new Error(adjError.message);
 
   const invByProduct = new Map((inventory ?? []).map((r) => [r.product_id, r]));
+  const invByVariant = new Map((variantInventory ?? []).map((r) => [r.variant_id, r]));
   const products = allProducts ?? [];
   const nameById = new Map(products.map((p) => [p.id, p.name]));
+  const variantLabelById = new Map(
+    products.flatMap((product) =>
+      (product.product_variants ?? []).map((variant) => [
+        variant.id,
+        `${variant.option_value} · ${variant.sku}`,
+      ]),
+    ),
+  );
 
-  const items = products.map((p) => {
-    const row = invByProduct.get(p.id);
+  type DistributorInventoryItem = {
+    id: string | null;
+    productId: string;
+    variantId: string | null;
+    requestKey: string;
+    name: string;
+    slug: string;
+    unitLabel: string;
+    sku: string | null;
+    priceCents: number;
+    isActive: boolean;
+    category: string | null;
+    stockQty: number;
+    hasInventoryRow: boolean;
+    status: "not_stocked" | "out" | "low" | "ok";
+  };
+
+  const items = products.flatMap<DistributorInventoryItem>((product) => {
+    if (product.has_variants) {
+      return (product.product_variants ?? [])
+        .filter((variant) => variant.is_active)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((variant) => {
+          const row = invByVariant.get(variant.id);
+          const stockQty = row?.stock_qty ?? 0;
+          const status = !row
+            ? "not_stocked"
+            : stockQty <= 0
+              ? "out"
+              : stockQty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD
+                ? "low"
+                : "ok";
+          return {
+            id: row?.id ?? null,
+            productId: product.id,
+            variantId: variant.id,
+            requestKey: variant.id,
+            name: product.name,
+            slug: product.slug,
+            unitLabel: variant.option_value,
+            sku: variant.sku,
+            priceCents: variant.price_cents,
+            isActive: product.is_active,
+            category: product.categories?.name ?? null,
+            stockQty,
+            hasInventoryRow: !!row,
+            status,
+          };
+        });
+    }
+
+    const row = invByProduct.get(product.id);
     const stockQty = row?.stock_qty ?? 0;
-    const status = !row ? "not_stocked" : stockQty <= 0 ? "out" : stockQty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD ? "low" : "ok";
-    return {
-      id: row?.id ?? null,
-      productId: p.id,
-      name: p.name,
-      slug: p.slug,
-      unitLabel: p.unit_label,
-      priceCents: p.price_cents,
-      isActive: p.is_active,
-      category: p.categories?.name ?? null,
-      stockQty,
-      hasInventoryRow: !!row,
-      status,
-    };
+    const status = !row
+      ? "not_stocked"
+      : stockQty <= 0
+        ? "out"
+        : stockQty <= DISTRIBUTOR_LOW_STOCK_THRESHOLD
+          ? "low"
+          : "ok";
+    return [
+      {
+        id: row?.id ?? null,
+        productId: product.id,
+        variantId: null,
+        requestKey: product.id,
+        name: product.name,
+        slug: product.slug,
+        unitLabel: product.unit_label,
+        sku: null,
+        priceCents: product.price_cents,
+        isActive: product.is_active,
+        category: product.categories?.name ?? null,
+        stockQty,
+        hasInventoryRow: !!row,
+        status,
+      },
+    ];
   });
 
   return {
@@ -560,6 +640,7 @@ export const getDistributorInventory = createServerFn({ method: "GET" }).handler
     recentAdjustments: (adjustments ?? []).map((a) => ({
       ...a,
       productName: nameById.get(a.product_id) ?? "Deleted product",
+      variantLabel: a.variant_id ? (variantLabelById.get(a.variant_id) ?? "Archived variant") : null,
     })),
     stats: {
       totalItems: items.filter((i) => i.hasInventoryRow).length,
@@ -572,6 +653,7 @@ export const getDistributorInventory = createServerFn({ method: "GET" }).handler
 
 const adjustDistributorSchema = z.object({
   productId: z.string().uuid(),
+  variantId: z.string().uuid().nullable().optional(),
   mode: z.enum(["set", "delta"]),
   amount: z.number().int().min(-1000000).max(1000000),
   reason: z.enum(["restock", "correction", "damage", "return"]),
@@ -584,12 +666,21 @@ export const adjustDistributorInventory = createServerFn({ method: "POST" })
     const { userId, distributorId } = await requireDistributor();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: row, error: rowError } = await supabaseAdmin
-      .from("distributor_inventory")
-      .select("id, stock_qty")
-      .eq("distributor_id", distributorId)
-      .eq("product_id", data.productId)
-      .maybeSingle();
+    const rowResult = data.variantId
+      ? await supabaseAdmin
+          .from("distributor_variant_inventory")
+          .select("id, stock_qty")
+          .eq("distributor_id", distributorId)
+          .eq("product_id", data.productId)
+          .eq("variant_id", data.variantId)
+          .maybeSingle()
+      : await supabaseAdmin
+          .from("distributor_inventory")
+          .select("id, stock_qty")
+          .eq("distributor_id", distributorId)
+          .eq("product_id", data.productId)
+          .maybeSingle();
+    const { data: row, error: rowError } = rowResult;
     if (rowError) throw new Error(rowError.message);
     if (!row) throw new Error("This product is not stocked by your distributor.");
 
@@ -599,14 +690,20 @@ export const adjustDistributorInventory = createServerFn({ method: "POST" })
     const delta = nextQty - previousQty;
     if (delta === 0) throw new Error("No change to apply.");
 
-    const { error: updateError } = await supabaseAdmin
-      .from("distributor_inventory")
-      .update({ stock_qty: nextQty })
-      .eq("id", row.id);
+    const { error: updateError } = data.variantId
+      ? await supabaseAdmin
+          .from("distributor_variant_inventory")
+          .update({ stock_qty: nextQty })
+          .eq("id", row.id)
+      : await supabaseAdmin
+          .from("distributor_inventory")
+          .update({ stock_qty: nextQty })
+          .eq("id", row.id);
     if (updateError) throw new Error(updateError.message);
 
     const { error: logError } = await supabaseAdmin.from("inventory_adjustments").insert({
       product_id: data.productId,
+      variant_id: data.variantId || null,
       distributor_id: distributorId,
       delta,
       previous_qty: previousQty,
@@ -652,6 +749,7 @@ async function requireSupplier() {
 
 const requestStockSchema = z.object({
   productId: z.string().uuid(),
+  variantId: z.string().uuid().nullable().optional(),
   requestedQty: z.number().int().min(1).max(1_000_000),
   note: z.string().trim().max(300).nullable().optional(),
 });
@@ -665,6 +763,7 @@ export const requestStockTransfer = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin.from("stock_transfer_requests").insert({
       requesting_distributor_id: distributorId,
       product_id: data.productId,
+      variant_id: data.variantId || null,
       requested_qty: data.requestedQty,
       note: data.note || null,
       requested_by: userId,
@@ -684,6 +783,7 @@ const batchRequestStockSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
+        variantId: z.string().uuid().nullable().optional(),
         requestedQty: z.number().int().min(1).max(1_000_000),
       }),
     )
@@ -698,17 +798,28 @@ export const requestStockTransfers = createServerFn({ method: "POST" })
     const { userId, distributorId } = await requireDistributor();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Collapse duplicate productIds (a product typed twice) by summing, so we
-    // never insert two rows for the same product in one batch.
-    const qtyByProduct = new Map<string, number>();
+    // Collapse duplicate product/variant lines by summing so one submission
+    // cannot create competing requests for the same inventory row.
+    const qtyByInventoryKey = new Map<
+      string,
+      { productId: string; variantId: string | null; requestedQty: number }
+    >();
     for (const item of data.items) {
-      qtyByProduct.set(item.productId, (qtyByProduct.get(item.productId) ?? 0) + item.requestedQty);
+      const variantId = item.variantId || null;
+      const key = `${item.productId}:${variantId ?? "base"}`;
+      const current = qtyByInventoryKey.get(key);
+      qtyByInventoryKey.set(key, {
+        productId: item.productId,
+        variantId,
+        requestedQty: (current?.requestedQty ?? 0) + item.requestedQty,
+      });
     }
 
-    const rows = [...qtyByProduct.entries()].map(([productId, requestedQty]) => ({
+    const rows = [...qtyByInventoryKey.values()].map((item) => ({
       requesting_distributor_id: distributorId,
-      product_id: productId,
-      requested_qty: Math.min(requestedQty, 1_000_000),
+      product_id: item.productId,
+      variant_id: item.variantId,
+      requested_qty: Math.min(item.requestedQty, 1_000_000),
       note: data.note || null,
       requested_by: userId,
     }));
@@ -725,7 +836,7 @@ export const getMyStockRequests = createServerFn({ method: "GET" }).handler(asyn
   const { data: requests, error } = await supabaseAdmin
     .from("stock_transfer_requests")
     .select(
-      "id, product_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label)",
+      "id, product_id, variant_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label), product_variants(option_value, sku)",
     )
     .eq("requesting_distributor_id", distributorId)
     .order("requested_at", { ascending: false })
@@ -744,7 +855,10 @@ export const getMyStockRequests = createServerFn({ method: "GET" }).handler(asyn
     id: r.id,
     productId: r.product_id,
     productName: r.products?.name ?? "Unknown product",
-    unitLabel: r.products?.unit_label ?? "",
+    variantId: r.variant_id,
+    variantLabel: r.product_variants?.option_value ?? null,
+    variantSku: r.product_variants?.sku ?? null,
+    unitLabel: r.product_variants?.option_value ?? r.products?.unit_label ?? "",
     requestedQty: r.requested_qty,
     approvedQty: r.approved_qty,
     status: r.status,
@@ -769,7 +883,7 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
   const { data: requests, error } = await supabaseAdmin
     .from("stock_transfer_requests")
     .select(
-      "id, requesting_distributor_id, product_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label)",
+      "id, requesting_distributor_id, product_id, variant_id, requested_qty, approved_qty, status, note, admin_note, fulfilled_by_distributor_id, requested_at, reviewed_at, products(name, unit_label), product_variants(option_value, sku)",
     )
     .order("requested_at", { ascending: false })
     .limit(200);
@@ -786,10 +900,14 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
     ),
   ];
   const productIds = [...new Set(requestRows.map((r) => r.product_id))];
+  const variantIds = [
+    ...new Set(requestRows.map((r) => r.variant_id).filter((id): id is string => !!id)),
+  ];
   const [
     { data: namedDistributors, error: namedDistributorsError },
     { data: activeDistributors, error: activeDistributorsError },
     { data: inventoryRows, error: inventoryError },
+    { data: sourceVariants, error: sourceVariantsError },
   ] = await Promise.all([
     supabaseAdmin.from("distributors").select("id, name").in("id", distributorIds),
     supabaseAdmin
@@ -803,14 +921,21 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
       .from("distributor_inventory")
       .select("distributor_id, product_id, stock_qty")
       .in("product_id", productIds),
+    variantIds.length
+      ? supabaseAdmin.from("product_variants").select("id, stock_qty").in("id", variantIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (namedDistributorsError) throw new Error(namedDistributorsError.message);
   if (activeDistributorsError) throw new Error(activeDistributorsError.message);
   if (inventoryError) throw new Error(inventoryError.message);
+  if (sourceVariantsError) throw new Error(sourceVariantsError.message);
 
   const nameById = new Map((namedDistributors ?? []).map((d) => [d.id, d.name]));
   const stockByDistributorProduct = new Map(
     (inventoryRows ?? []).map((row) => [`${row.distributor_id}:${row.product_id}`, row.stock_qty]),
+  );
+  const mainStockByVariant = new Map(
+    (sourceVariants ?? []).map((variant) => [variant.id, variant.stock_qty]),
   );
 
   return requestRows.map((r) => {
@@ -820,7 +945,9 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
         distributorId: distributor.id,
         name: distributor.name,
         canSupply: distributor.can_supply,
-        stockQty: stockByDistributorProduct.get(`${distributor.id}:${r.product_id}`) ?? 0,
+        stockQty: r.variant_id
+          ? (mainStockByVariant.get(r.variant_id) ?? 0)
+          : (stockByDistributorProduct.get(`${distributor.id}:${r.product_id}`) ?? 0),
       }))
       .sort(
         (a, b) =>
@@ -835,7 +962,10 @@ export const getSupplierRequests = createServerFn({ method: "GET" }).handler(asy
       requestingDistributorName: nameById.get(r.requesting_distributor_id) ?? "Unknown",
       productId: r.product_id,
       productName: r.products?.name ?? "Unknown product",
-      unitLabel: r.products?.unit_label ?? "",
+      variantId: r.variant_id,
+      variantLabel: r.product_variants?.option_value ?? null,
+      variantSku: r.product_variants?.sku ?? null,
+      unitLabel: r.product_variants?.option_value ?? r.products?.unit_label ?? "",
       requestedQty: r.requested_qty,
       approvedQty: r.approved_qty,
       status: r.status,

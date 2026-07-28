@@ -124,6 +124,7 @@ function CartPage() {
                     </Link>
                     <div className="text-xs text-muted-foreground">
                       {item.variantLabel ? item.variantLabel : item.unitLabel}
+                      {item.variantSku ? ` · ${item.variantSku}` : ""}
                     </div>
                     <div className="mt-1 flex items-baseline gap-2">
                       <span className="text-sm font-bold">{formatCents(item.priceCents)}</span>
@@ -142,6 +143,7 @@ function CartPage() {
                       <QuantityStepper
                         size="sm"
                         value={item.qty}
+                        max={Math.max(1, item.availableStock ?? 99)}
                         onChange={(n) => setQty(lineId, n)}
                       />
                       <div className="flex items-center gap-1">

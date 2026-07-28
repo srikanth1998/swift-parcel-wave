@@ -236,6 +236,55 @@ export type Database = {
           },
         ]
       }
+      distributor_variant_inventory: {
+        Row: {
+          distributor_id: string
+          id: string
+          product_id: string
+          stock_qty: number
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          distributor_id: string
+          id?: string
+          product_id: string
+          stock_qty?: number
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          distributor_id?: string
+          id?: string
+          product_id?: string
+          stock_qty?: number
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distributor_variant_inventory_distributor_id_fkey"
+            columns: ["distributor_id"]
+            isOneToOne: false
+            referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_variant_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distributor_variant_inventory_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distributors: {
         Row: {
           can_supply: boolean
@@ -281,6 +330,7 @@ export type Database = {
           previous_qty: number
           product_id: string
           reason: Database["public"]["Enums"]["inventory_reason_enum"]
+          variant_id: string | null
         }
         Insert: {
           created_at?: string
@@ -293,6 +343,7 @@ export type Database = {
           previous_qty: number
           product_id: string
           reason: Database["public"]["Enums"]["inventory_reason_enum"]
+          variant_id?: string | null
         }
         Update: {
           created_at?: string
@@ -305,6 +356,7 @@ export type Database = {
           previous_qty?: number
           product_id?: string
           reason?: Database["public"]["Enums"]["inventory_reason_enum"]
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -319,6 +371,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_adjustments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -378,6 +437,7 @@ export type Database = {
           unit_price_cents: number
           variant_id: string | null
           variant_label: string | null
+          variant_sku: string | null
         }
         Insert: {
           created_at?: string
@@ -392,6 +452,7 @@ export type Database = {
           unit_price_cents: number
           variant_id?: string | null
           variant_label?: string | null
+          variant_sku?: string | null
         }
         Update: {
           created_at?: string
@@ -406,6 +467,7 @@ export type Database = {
           unit_price_cents?: number
           variant_id?: string | null
           variant_label?: string | null
+          variant_sku?: string | null
         }
         Relationships: [
           {
@@ -454,6 +516,8 @@ export type Database = {
           guest_access_token_hash: string | null
           id: string
           idempotency_key: string | null
+          inventory_released_at: string | null
+          inventory_reserved_at: string | null
           order_number: string
           order_status: Database["public"]["Enums"]["order_status_enum"]
           packed_at: string | null
@@ -485,6 +549,8 @@ export type Database = {
           guest_access_token_hash?: string | null
           id?: string
           idempotency_key?: string | null
+          inventory_released_at?: string | null
+          inventory_reserved_at?: string | null
           order_number: string
           order_status?: Database["public"]["Enums"]["order_status_enum"]
           packed_at?: string | null
@@ -516,6 +582,8 @@ export type Database = {
           guest_access_token_hash?: string | null
           id?: string
           idempotency_key?: string | null
+          inventory_released_at?: string | null
+          inventory_reserved_at?: string | null
           order_number?: string
           order_status?: Database["public"]["Enums"]["order_status_enum"]
           packed_at?: string | null
@@ -562,12 +630,13 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          low_stock_threshold: number
           mrp_cents: number | null
           option_name: string
           option_value: string
           price_cents: number
           product_id: string
-          sku: string | null
+          sku: string
           sort_order: number
           stock_qty: number
           updated_at: string
@@ -577,12 +646,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          low_stock_threshold?: number
           mrp_cents?: number | null
           option_name?: string
           option_value: string
           price_cents?: number
           product_id: string
-          sku?: string | null
+          sku: string
           sort_order?: number
           stock_qty?: number
           updated_at?: string
@@ -592,12 +662,13 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          low_stock_threshold?: number
           mrp_cents?: number | null
           option_name?: string
           option_value?: string
           price_cents?: number
           product_id?: string
-          sku?: string | null
+          sku?: string
           sort_order?: number
           stock_qty?: number
           updated_at?: string
@@ -815,6 +886,7 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["stock_transfer_status_enum"]
           updated_at: string
+          variant_id: string | null
         }
         Insert: {
           admin_note?: string | null
@@ -832,6 +904,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["stock_transfer_status_enum"]
           updated_at?: string
+          variant_id?: string | null
         }
         Update: {
           admin_note?: string | null
@@ -849,6 +922,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["stock_transfer_status_enum"]
           updated_at?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -870,6 +944,13 @@ export type Database = {
             columns: ["requesting_distributor_id"]
             isOneToOne: false
             referencedRelation: "distributors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfer_requests_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -987,6 +1068,27 @@ export type Database = {
       }
     }
     Functions: {
+      admin_upsert_product: {
+        Args: {
+          _brand: string
+          _category_id: string | null
+          _description: string
+          _has_variants: boolean
+          _image_url: string
+          _is_active: boolean
+          _is_featured: boolean
+          _mrp_cents: number | null
+          _name: string
+          _price_cents: number
+          _product_id: string | null
+          _slug: string
+          _stock_qty: number
+          _tags: string[]
+          _unit_label: string
+          _variants: Json
+        }
+        Returns: string
+      }
       adjust_inventory_atomic: {
         Args: {
           _amount: number
@@ -1054,6 +1156,10 @@ export type Database = {
         Returns: undefined
       }
       record_order_variant_stock_decrement: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      release_order_inventory: {
         Args: { _order_id: string }
         Returns: undefined
       }

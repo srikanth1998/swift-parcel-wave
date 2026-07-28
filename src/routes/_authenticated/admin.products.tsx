@@ -67,9 +67,11 @@ type VariantForm = {
   id?: string;
   optionName: string;
   optionValue: string;
+  sku: string;
   priceRupees: number;
   mrpRupees: number;
   stockQty: number;
+  lowStockThreshold: number;
   imageUrl: string;
   isActive: boolean;
 };
@@ -77,9 +79,11 @@ type VariantForm = {
 const emptyVariant: VariantForm = {
   optionName: "Weight",
   optionValue: "",
+  sku: "",
   priceRupees: 0,
   mrpRupees: 0,
   stockQty: 0,
+  lowStockThreshold: 10,
   imageUrl: "",
   isActive: true,
 };
@@ -127,6 +131,30 @@ function parseTags(input: string): string[] {
     .slice(0, 6);
 }
 
+function variantValidationMessage(variants: VariantForm[]) {
+  if (variants.length === 0) return "Add at least one variant.";
+
+  const skus = new Set<string>();
+  const options = new Set<string>();
+  for (const variant of variants) {
+    if (!variant.optionValue.trim()) return "Every variant needs an option value.";
+    if (!variant.sku.trim()) return `Add a SKU for ${variant.optionValue || "every variant"}.`;
+
+    const sku = variant.sku.trim().toLowerCase();
+    if (skus.has(sku)) return `Duplicate SKU "${variant.sku}" is not allowed.`;
+    skus.add(sku);
+
+    const option = `${variant.optionName.trim().toLowerCase()}::${variant.optionValue
+      .trim()
+      .toLowerCase()}`;
+    if (options.has(option)) {
+      return `Duplicate variant "${variant.optionValue}" is not allowed.`;
+    }
+    options.add(option);
+  }
+  return null;
+}
+
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({ meta: [{ title: "Catalog - FEA Bazaar" }] }),
   component: AdminProductsPage,
@@ -169,9 +197,7 @@ function AdminProductsPage() {
           tags: parseTags(input.tags),
           hasVariants: input.hasVariants,
           variants: input.hasVariants
-            ? input.variants
-                .filter((v) => v.optionValue.trim().length > 0)
-                .map((v) => ({ ...v, imageUrl: v.imageUrl || null }))
+            ? input.variants.map((v) => ({ ...v, imageUrl: v.imageUrl || null }))
             : [],
         },
       }),
@@ -209,6 +235,12 @@ function AdminProductsPage() {
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [data?.products, search]);
+  const variantError = productForm.hasVariants
+    ? variantValidationMessage(productForm.variants)
+    : null;
+  const variantTotalStock = productForm.variants
+    .filter((variant) => variant.isActive)
+    .reduce((total, variant) => total + variant.stockQty, 0);
 
   const visibleIds = products.map((product) => product.id);
   const selectedVisibleIds = visibleIds.filter((id) => selectedIds.includes(id));
@@ -272,6 +304,7 @@ function AdminProductsPage() {
                   <Field label="Name">
                     <Input
                       value={productForm.name}
+                      aria-label="Product name"
                       onChange={(event) =>
                         setProductForm((current) => ({ ...current, name: event.target.value }))
                       }
@@ -281,6 +314,7 @@ function AdminProductsPage() {
                   <Field label="Slug">
                     <Input
                       value={productForm.slug}
+                      aria-label="Product slug"
                       onChange={(event) =>
                         setProductForm((current) => ({ ...current, slug: event.target.value }))
                       }
@@ -291,6 +325,7 @@ function AdminProductsPage() {
                 <Field label="Description">
                   <Input
                     value={productForm.description}
+                    aria-label="Product description"
                     onChange={(event) =>
                       setProductForm((current) => ({ ...current, description: event.target.value }))
                     }
@@ -304,7 +339,7 @@ function AdminProductsPage() {
                         setProductForm((current) => ({ ...current, categoryId }))
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Product category">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -331,6 +366,7 @@ function AdminProductsPage() {
                   <Field label="Brand">
                     <Input
                       value={productForm.brand}
+                      aria-label="Product brand"
                       onChange={(event) =>
                         setProductForm((current) => ({ ...current, brand: event.target.value }))
                       }
@@ -340,6 +376,7 @@ function AdminProductsPage() {
                   <Field label="Unit">
                     <Input
                       value={productForm.unitLabel}
+                      aria-label="Product unit"
                       onChange={(event) =>
                         setProductForm((current) => ({ ...current, unitLabel: event.target.value }))
                       }
@@ -351,9 +388,11 @@ function AdminProductsPage() {
                   <Field label="Selling Price (₹)">
                     <Input
                       type="number"
+                      aria-label="Product selling price"
                       min={0}
                       step="0.01"
                       value={productForm.priceRupees}
+                      disabled={productForm.hasVariants}
                       onChange={(event) =>
                         setProductForm((current) => ({
                           ...current,
@@ -366,9 +405,11 @@ function AdminProductsPage() {
                   <Field label="MRP (₹)">
                     <Input
                       type="number"
+                      aria-label="Product MRP"
                       min={0}
                       step="0.01"
                       value={productForm.mrpRupees}
+                      disabled={productForm.hasVariants}
                       onChange={(event) =>
                         setProductForm((current) => ({
                           ...current,
@@ -381,8 +422,10 @@ function AdminProductsPage() {
                   <Field label="Stock">
                     <Input
                       type="number"
+                      aria-label="Product stock"
                       min={0}
-                      value={productForm.stockQty}
+                      value={productForm.hasVariants ? variantTotalStock : productForm.stockQty}
+                      disabled={productForm.hasVariants}
                       onChange={(event) =>
                         setProductForm((current) => ({
                           ...current,
@@ -412,6 +455,7 @@ function AdminProductsPage() {
                 <Field label="Tags (comma-separated, up to 6)">
                   <Input
                     value={productForm.tags}
+                    aria-label="Product tags"
                     onChange={(event) =>
                       setProductForm((current) => ({ ...current, tags: event.target.value }))
                     }
@@ -439,9 +483,23 @@ function AdminProductsPage() {
                   {productForm.hasVariants && (
                     <div className="mt-3 space-y-3">
                       <p className="text-xs text-muted-foreground">
-                        Each variant keeps its own price and stock. Customers pick one before adding
-                        to cart.
+                        Each variant keeps its own SKU, price, threshold, and stock. The parent price
+                        and total stock are calculated from active variants.
                       </p>
+                      <div
+                        className="rounded-md bg-primary/5 px-3 py-2 text-sm font-medium text-primary"
+                        aria-live="polite"
+                      >
+                        Total sellable stock: {variantTotalStock}
+                      </div>
+                      {variantError && (
+                        <div
+                          role="alert"
+                          className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                        >
+                          {variantError}
+                        </div>
+                      )}
                       {productForm.variants.map((variant, index) => (
                         <div
                           key={variant.id ?? `new-${index}`}
@@ -452,6 +510,8 @@ function AdminProductsPage() {
                               <Input
                                 value={variant.optionName}
                                 placeholder="Weight"
+                                aria-label={`Variant ${index + 1} option name`}
+                                required
                                 onChange={(event) =>
                                   updateVariant(index, { optionName: event.target.value })
                                 }
@@ -461,8 +521,37 @@ function AdminProductsPage() {
                               <Input
                                 value={variant.optionValue}
                                 placeholder="500g"
+                                aria-label={`Variant ${index + 1} option value`}
+                                required
                                 onChange={(event) =>
                                   updateVariant(index, { optionValue: event.target.value })
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="SKU">
+                              <Input
+                                value={variant.sku}
+                                placeholder="RICE-500G"
+                                aria-label={`Variant ${index + 1} SKU`}
+                                required
+                                onChange={(event) =>
+                                  updateVariant(index, { sku: event.target.value.toUpperCase() })
+                                }
+                              />
+                            </Field>
+                            <Field label="Low-stock threshold">
+                              <Input
+                                type="number"
+                                min={0}
+                                value={variant.lowStockThreshold}
+                                aria-label={`Variant ${index + 1} low-stock threshold`}
+                                required
+                                onChange={(event) =>
+                                  updateVariant(index, {
+                                    lowStockThreshold: Number(event.target.value) || 0,
+                                  })
                                 }
                               />
                             </Field>
@@ -474,6 +563,8 @@ function AdminProductsPage() {
                                 min={0}
                                 step="0.01"
                                 value={variant.priceRupees}
+                                aria-label={`Variant ${index + 1} selling price`}
+                                required
                                 onChange={(event) =>
                                   updateVariant(index, {
                                     priceRupees: Number(event.target.value) || 0,
@@ -487,6 +578,7 @@ function AdminProductsPage() {
                                 min={0}
                                 step="0.01"
                                 value={variant.mrpRupees}
+                                aria-label={`Variant ${index + 1} MRP`}
                                 onChange={(event) =>
                                   updateVariant(index, {
                                     mrpRupees: Number(event.target.value) || 0,
@@ -499,6 +591,8 @@ function AdminProductsPage() {
                                 type="number"
                                 min={0}
                                 value={variant.stockQty}
+                                aria-label={`Variant ${index + 1} stock`}
+                                required
                                 onChange={(event) =>
                                   updateVariant(index, { stockQty: Number(event.target.value) || 0 })
                                 }
@@ -529,7 +623,7 @@ function AdminProductsPage() {
                                 }))
                               }
                             >
-                              Remove
+                              {variant.id ? "Archive" : "Remove"}
                             </Button>
                           </div>
                         </div>
@@ -550,7 +644,10 @@ function AdminProductsPage() {
                     </div>
                   )}
                 </div>
-                <Button type="submit" disabled={productMutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={productMutation.isPending || Boolean(variantError)}
+                >
                   {productMutation.isPending && <Loader2 className="animate-spin" />}
                   {productMutation.isPending ? "Saving..." : "Save product"}
                 </Button>
@@ -795,9 +892,11 @@ function AdminProductsPage() {
                                         id: v.id,
                                         optionName: v.option_name,
                                         optionValue: v.option_value,
+                                        sku: v.sku,
                                         priceRupees: v.price_cents / 100,
                                         mrpRupees: v.mrp_cents ? v.mrp_cents / 100 : 0,
                                         stockQty: v.stock_qty,
+                                        lowStockThreshold: v.low_stock_threshold,
                                         imageUrl: v.image_url ?? "",
                                         isActive: v.is_active,
                                       })),

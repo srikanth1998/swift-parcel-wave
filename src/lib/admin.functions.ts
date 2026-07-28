@@ -77,6 +77,27 @@ function rupeesFromCents(value: number) {
   return Math.round((value / 100) * 100) / 100;
 }
 
+function productSaveError(error: { code?: string; message: string }) {
+  if (error.code === "23505") {
+    if (error.message.includes("products_slug_key")) {
+      return "That product slug is already in use. Choose a different slug.";
+    }
+    if (error.message.includes("product_variants_sku_unique_ci")) {
+      return "Each variant SKU must be unique across the catalog.";
+    }
+    if (
+      error.message.includes("product_variants_option_unique_ci") ||
+      error.message.includes("product_variants_product_id_option_name_option_value_key")
+    ) {
+      return "That variant option already exists on this product.";
+    }
+  }
+  if (error.code === "23514") {
+    return "Product prices, stock, and thresholds must satisfy the allowed ranges.";
+  }
+  return error.message;
+}
+
 function displayName(profile?: { full_name: string | null; referral_code?: string; id?: string }) {
   if (!profile) return "Guest";
   return profile.full_name?.trim() || profile.referral_code || profile.id?.slice(0, 8) || "User";
@@ -172,7 +193,7 @@ export const getAdminOrders = createServerFn({ method: "GET" })
       ? await supabaseAdmin
           .from("order_items")
           .select(
-            "id, order_id, name_snapshot, ordered_qty, picked_qty, unit_price_cents, is_unavailable",
+            "id, order_id, name_snapshot, variant_sku, ordered_qty, picked_qty, unit_price_cents, is_unavailable",
           )
           .in("order_id", orderIds)
       : { data: [], error: null };
@@ -221,10 +242,23 @@ export const updateAdminOrder = createServerFn({ method: "POST" })
 
     const { data: current, error: currentError } = await supabaseAdmin
       .from("orders")
-      .select("id, customer_id, order_status, payment_status")
+      .select(
+        "id, customer_id, order_status, payment_status, inventory_reserved_at, inventory_released_at",
+      )
       .eq("id", data.orderId)
       .single();
     if (currentError || !current) throw new Error(currentError?.message ?? "Order not found");
+
+    const nextOrderStatus = data.orderStatus ?? current.order_status;
+    const nextPaymentStatus = data.paymentStatus ?? current.payment_status;
+    const isTerminal =
+      ["cancelled", "refunded"].includes(nextOrderStatus) ||
+      ["failed", "refunded"].includes(nextPaymentStatus);
+    if (current.inventory_released_at && !isTerminal) {
+      throw new Error(
+        "This order's inventory has already been released. Create a new order instead of reopening it.",
+      );
+    }
 
     const now = new Date().toISOString();
     const patch: Database["public"]["Tables"]["orders"]["Update"] = {};
@@ -272,7 +306,7 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
       supabaseAdmin
         .from("products")
         .select(
-          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, tags, has_variants, created_at, updated_at, categories(slug, name), product_variants(id, option_name, option_value, price_cents, mrp_cents, stock_qty, image_url, is_active, sort_order)",
+          "id, slug, name, description, category_id, price_cents, mrp_cents, brand, unit_label, image_url, stock_qty, is_active, is_featured, tags, has_variants, created_at, updated_at, categories(slug, name), product_variants(id, option_name, option_value, sku, price_cents, mrp_cents, stock_qty, low_stock_threshold, image_url, is_active, sort_order)",
         )
         .order("name", { ascending: true }),
     ]);
@@ -291,39 +325,79 @@ export const getAdminCatalog = createServerFn({ method: "GET" }).handler(async (
   };
 });
 
-const productInputSchema = z.object({
-  id: z.string().uuid().optional(),
-  name: z.string().trim().min(1).max(120),
-  slug: z.string().trim().max(140).optional().default(""),
-  description: z.string().trim().max(1000).nullable().optional(),
-  categoryId: z.string().uuid().nullable().optional(),
-  priceRupees: z.number().min(0).max(1_000_000),
-  mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
-  brand: z.string().trim().max(100).optional().default(""),
-  unitLabel: z.string().trim().min(1).max(40),
-  imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
-  stockQty: z.number().int().min(0).max(1_000_000),
-  isActive: z.boolean(),
-  isFeatured: z.boolean(),
-  tags: z.array(z.string().trim().min(1).max(60)).max(6).optional().default([]),
-  hasVariants: z.boolean().optional().default(false),
-  variants: z
-    .array(
-      z.object({
-        id: z.string().uuid().optional(),
-        optionName: z.string().trim().min(1).max(40).optional().default("Weight"),
-        optionValue: z.string().trim().min(1).max(60),
-        priceRupees: z.number().min(0).max(1_000_000),
-        mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
-        stockQty: z.number().int().min(0).max(1_000_000),
-        imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
-        isActive: z.boolean().optional().default(true),
-      }),
-    )
-    .max(30)
-    .optional()
-    .default([]),
-});
+const productInputSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    name: z.string().trim().min(1).max(120),
+    slug: z.string().trim().max(140).optional().default(""),
+    description: z.string().trim().max(1000).nullable().optional(),
+    categoryId: z.string().uuid().nullable().optional(),
+    priceRupees: z.number().min(0).max(1_000_000),
+    mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
+    brand: z.string().trim().max(100).optional().default(""),
+    unitLabel: z.string().trim().min(1).max(40),
+    imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
+    stockQty: z.number().int().min(0).max(1_000_000),
+    isActive: z.boolean(),
+    isFeatured: z.boolean(),
+    tags: z.array(z.string().trim().min(1).max(60)).max(6).optional().default([]),
+    hasVariants: z.boolean().optional().default(false),
+    variants: z
+      .array(
+        z.object({
+          id: z.string().uuid().optional(),
+          optionName: z.string().trim().min(1).max(40).optional().default("Weight"),
+          optionValue: z.string().trim().min(1).max(60),
+          sku: z.string().trim().min(1).max(80),
+          priceRupees: z.number().min(0).max(1_000_000),
+          mrpRupees: z.number().min(0).max(1_000_000).optional().default(0),
+          stockQty: z.number().int().min(0).max(1_000_000),
+          lowStockThreshold: z.number().int().min(0).max(1_000_000).optional().default(10),
+          imageUrl: z.string().trim().url().nullable().or(z.literal("")).optional(),
+          isActive: z.boolean().optional().default(true),
+        }),
+      )
+      .max(30)
+      .optional()
+      .default([]),
+  })
+  .superRefine((product, ctx) => {
+    if (!product.hasVariants) return;
+    if (product.variants.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["variants"],
+        message: "Add at least one variant.",
+      });
+      return;
+    }
+
+    const skus = new Set<string>();
+    const options = new Set<string>();
+    product.variants.forEach((variant, index) => {
+      const sku = variant.sku.trim().toLowerCase();
+      if (skus.has(sku)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["variants", index, "sku"],
+          message: `Duplicate SKU "${variant.sku}".`,
+        });
+      }
+      skus.add(sku);
+
+      const option = `${variant.optionName.trim().toLowerCase()}::${variant.optionValue
+        .trim()
+        .toLowerCase()}`;
+      if (options.has(option)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["variants", index, "optionValue"],
+          message: `Duplicate variant "${variant.optionValue}".`,
+        });
+      }
+      options.add(option);
+    });
+  });
 
 export const upsertAdminProduct = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => productInputSchema.parse(input))
@@ -331,77 +405,50 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
     await requireRole(["admin"]);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const mrpCents = data.mrpRupees ? centsFromRupees(data.mrpRupees) : null;
     const priceCents = centsFromRupees(data.priceRupees);
+    const mrpCents = data.mrpRupees ? centsFromRupees(data.mrpRupees) : null;
+    const variants = data.hasVariants
+      ? data.variants.map((variant, index) => {
+          const variantPrice = centsFromRupees(variant.priceRupees);
+          const variantMrp = variant.mrpRupees ? centsFromRupees(variant.mrpRupees) : null;
+          return {
+            id: variant.id ?? null,
+            option_name: variant.optionName || "Weight",
+            option_value: variant.optionValue,
+            sku: variant.sku,
+            price_cents: variantPrice,
+            mrp_cents:
+              variantMrp && variantMrp >= variantPrice ? variantMrp : null,
+            stock_qty: variant.stockQty,
+            low_stock_threshold: variant.lowStockThreshold,
+            image_url: variant.imageUrl || null,
+            is_active: variant.isActive ?? true,
+            sort_order: index,
+          };
+        })
+      : [];
 
-    const row = {
-      name: data.name,
-      slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
-      description: data.description || null,
-      category_id: data.categoryId || null,
-      price_cents: priceCents,
-      mrp_cents: mrpCents && mrpCents > priceCents ? mrpCents : null,
-      brand: data.brand || null,
-      unit_label: data.unitLabel,
-      image_url: data.imageUrl || null,
-      stock_qty: data.stockQty,
-      is_active: data.isActive,
-      is_featured: data.isFeatured,
-      tags: data.tags ?? [],
-      has_variants: data.hasVariants ?? false,
-    };
+    const { data: productId, error } = await supabaseAdmin.rpc("admin_upsert_product", {
+      _product_id: data.id ?? null,
+      _name: data.name,
+      _slug: data.slug ? makeSlug(data.slug) : makeSlug(data.name),
+      _description: data.description || "",
+      _category_id: data.categoryId || null,
+      _price_cents: priceCents,
+      _mrp_cents: mrpCents && mrpCents >= priceCents ? mrpCents : null,
+      _brand: data.brand || "",
+      _unit_label: data.unitLabel,
+      _image_url: data.imageUrl || "",
+      _stock_qty: data.stockQty,
+      _is_active: data.isActive,
+      _is_featured: data.isFeatured,
+      _tags: data.tags ?? [],
+      _has_variants: data.hasVariants,
+      _variants: variants,
+    });
+    if (error) throw new Error(productSaveError(error));
 
-    const variantRowsFor = (productId: string) =>
-      (data.variants ?? []).map((variant, index) => {
-        const vPrice = centsFromRupees(variant.priceRupees);
-        const vMrp = variant.mrpRupees ? centsFromRupees(variant.mrpRupees) : null;
-        return {
-          ...(variant.id ? { id: variant.id } : {}),
-          product_id: productId,
-          option_name: variant.optionName || "Weight",
-          option_value: variant.optionValue,
-          price_cents: vPrice,
-          mrp_cents: vMrp && vMrp > vPrice ? vMrp : null,
-          stock_qty: variant.stockQty,
-          image_url: variant.imageUrl || null,
-          is_active: variant.isActive ?? true,
-          sort_order: index,
-        };
-      });
-
-    async function syncVariants(productId: string) {
-      const rows = variantRowsFor(productId);
-      const keepIds = rows.map((r) => ("id" in r ? (r.id as string) : "")).filter(Boolean);
-      let deleteQuery = supabaseAdmin.from("product_variants").delete().eq("product_id", productId);
-      if (keepIds.length > 0) deleteQuery = deleteQuery.not("id", "in", `(${keepIds.join(",")})`);
-      const { error: deleteError } = await deleteQuery;
-      if (deleteError) throw new Error(deleteError.message);
-      if (rows.length === 0) return;
-      const { error: upsertError } = await supabaseAdmin
-        .from("product_variants")
-        .upsert(rows, { onConflict: "id" });
-      if (upsertError) throw new Error(upsertError.message);
-    }
-
-    if (data.id) {
-      const { error } = await supabaseAdmin.from("products").update(row).eq("id", data.id);
-      if (error) throw new Error(error.message);
-      await syncVariants(data.id);
-      return { ok: true };
-    }
-
-    const { data: inserted, error: insertError } = await supabaseAdmin
-      .from("products")
-      .insert(row)
-      .select("id")
-      .single();
-    if (insertError) throw new Error(insertError.message);
-    if (inserted) await syncVariants(inserted.id);
-
-    // The database stock-sync trigger creates the Main Warehouse inventory
-    // row from products.stock_qty in the same transaction.
-
-    return { ok: true };
+    return { ok: true, productId };
   });
 
 // Inline "products board" edits: update the common product fields in one shot.
