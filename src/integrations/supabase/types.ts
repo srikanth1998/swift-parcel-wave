@@ -1068,27 +1068,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_upsert_product: {
-        Args: {
-          _brand: string
-          _category_id: string | null
-          _description: string
-          _has_variants: boolean
-          _image_url: string
-          _is_active: boolean
-          _is_featured: boolean
-          _mrp_cents: number | null
-          _name: string
-          _price_cents: number
-          _product_id: string | null
-          _slug: string
-          _stock_qty: number
-          _tags: string[]
-          _unit_label: string
-          _variants: Json
-        }
-        Returns: string
-      }
       adjust_inventory_atomic: {
         Args: {
           _amount: number
@@ -1103,6 +1082,27 @@ export type Database = {
           new_qty: number
           previous_qty: number
         }[]
+      }
+      admin_upsert_product: {
+        Args: {
+          _brand: string
+          _category_id: string
+          _description: string
+          _has_variants: boolean
+          _image_url: string
+          _is_active: boolean
+          _is_featured: boolean
+          _mrp_cents: number
+          _name: string
+          _price_cents: number
+          _product_id: string
+          _slug: string
+          _stock_qty: number
+          _tags: string[]
+          _unit_label: string
+          _variants: Json
+        }
+        Returns: string
       }
       approve_stock_transfer: {
         Args: {
@@ -1159,10 +1159,6 @@ export type Database = {
         Args: { _order_id: string }
         Returns: undefined
       }
-      release_order_inventory: {
-        Args: { _order_id: string }
-        Returns: undefined
-      }
       redeem_coupon_atomic:
         | {
             Args: {
@@ -1174,6 +1170,14 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { _order_id: string }; Returns: boolean }
+      release_order_inventory: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      restore_order_inventory_rows: {
+        Args: { _distributor_id: string; _order_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "customer" | "staff" | "admin" | "distributor"
