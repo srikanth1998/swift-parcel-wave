@@ -405,6 +405,51 @@ export const upsertAdminProduct = createServerFn({ method: "POST" })
   });
 
 // Inline "products board" edits: update the common product fields in one shot.
+// Bulk delete products. Order history is preserved: order_items keep their
+// name snapshot and simply lose the product reference.
+const deleteProductsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(200),
+});
+
+export const deleteAdminProducts = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => deleteProductsSchema.parse(input))
+  .handler(async ({ data }) => {
+    await requireRole(["admin"]);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ids = data.ids;
+
+    const detach = async (
+      table: "order_items",
+      column: "product_id" | "replacement_product_id",
+    ) => {
+      const { error } = await supabaseAdmin
+        .from(table)
+        .update({ [column]: null })
+        .in(column, ids);
+      if (error) throw new Error(error.message);
+    };
+    await detach("order_items", "product_id");
+    await detach("order_items", "replacement_product_id");
+
+    for (const table of [
+      "product_variants",
+      "distributor_inventory",
+      "inventory_adjustments",
+      "stock_transfer_requests",
+    ] as const) {
+      const { error } = await supabaseAdmin.from(table).delete().in("product_id", ids);
+      if (error) throw new Error(error.message);
+    }
+
+    const { error: deleteError, count } = await supabaseAdmin
+      .from("products")
+      .delete({ count: "exact" })
+      .in("id", ids);
+    if (deleteError) throw new Error(deleteError.message);
+
+    return { ok: true, deleted: count ?? ids.length };
+  });
+
 
 // When stock changes here it is logged to the inventory ledger (reason
 // "correction") so the two modules stay in sync. Slug is intentionally left
