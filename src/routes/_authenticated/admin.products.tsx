@@ -807,6 +807,18 @@ function AdminProductsPage() {
                                 <Edit />
                                 Edit
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setSelectedIds([product.id]);
+                                  setConfirmDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2 />
+                                Delete
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
