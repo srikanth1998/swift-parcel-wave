@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -200,6 +207,8 @@ function AdminProductsPage() {
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [recentlySavedProductId, setRecentlySavedProductId] = useState<string | null>(null);
   const productRowsRef = useRef(new Map<string, HTMLTableRowElement>());
@@ -269,6 +278,7 @@ function AdminProductsPage() {
     onSuccess: async (result, savedProduct) => {
       setSearch("");
       setProductForm(emptyProduct);
+      setProductDialogOpen(false);
       setRecentlySavedProductId(result.productId ?? null);
       await queryClient.invalidateQueries({
         queryKey: ["admin-catalog"],
@@ -291,6 +301,7 @@ function AdminProductsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
       setCategoryForm(emptyCategory);
+      setCategoryDialogOpen(false);
       toast.success("Category saved");
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : "Category save failed"),
