@@ -869,11 +869,11 @@ function AdminProductsPage() {
                   {categoryMutation.isPending ? "Saving..." : "Save category"}
                 </Button>
               </form>
-            </div>
-          </section>
+            </DialogContent>
+          </Dialog>
 
-          <section className="space-y-4 xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:space-y-0">
-            <div className="shrink-0 rounded-md border border-border bg-card p-4 shadow-sm">
+          <section className="space-y-4">
+            <div className="rounded-md border border-border bg-card p-4 shadow-sm">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
