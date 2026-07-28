@@ -1007,7 +1007,7 @@ function AdminProductsPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() =>
+                                onClick={() => {
                                   setProductForm({
                                     id: product.id,
                                     name: product.name,
@@ -1039,8 +1039,9 @@ function AdminProductsPage() {
                                         imageUrl: v.image_url ?? "",
                                         isActive: v.is_active,
                                       })),
-                                  })
-                                }
+                                  });
+                                  setProductDialogOpen(true);
+                                }}
                               >
                                 <Edit />
                                 Edit
@@ -1086,7 +1087,7 @@ function AdminProductsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
+                            onClick={() => {
                               setCategoryForm({
                                 id: category.id,
                                 name: category.name,
@@ -1094,8 +1095,9 @@ function AdminProductsPage() {
                                 imageUrl: category.image_url ?? "",
                                 sortOrder: category.sort_order,
                                 tags: (category.tags ?? []).join(", "),
-                              })
-                            }
+                              });
+                              setCategoryDialogOpen(true);
+                            }}
                           >
                             <Edit />
                             Edit
