@@ -162,11 +162,18 @@ export const placeOrder = createServerFn({ method: "POST" })
     let subtotal = 0;
     const orderItemRows = data.items.map((it) => {
       const p = priceMap.get(it.productId)!;
-      subtotal += p.price_cents * it.qty;
+      const variant = it.variantId ? variantMap.get(it.variantId) : undefined;
+      if (variant && variant.product_id !== p.id) {
+        throw new Error("Selected option does not belong to the product.");
+      }
+      const unitPrice = variant ? variant.price_cents : p.price_cents;
+      subtotal += unitPrice * it.qty;
       return {
         product_id: p.id,
-        name_snapshot: p.name,
-        unit_price_cents: p.price_cents,
+        variant_id: variant?.id ?? null,
+        variant_label: variant ? variant.option_value : null,
+        name_snapshot: variant ? `${p.name} – ${variant.option_value}` : p.name,
+        unit_price_cents: unitPrice,
         ordered_qty: it.qty,
       };
     });
