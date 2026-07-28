@@ -1,11 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Edit, Loader2, Plus, Search, Upload, X } from "lucide-react";
+import { Edit, Loader2, Plus, Search, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { AdminPageFrame } from "@/components/admin-nav";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import {
   getAdminCatalog,
+  deleteAdminProducts,
   uploadAdminImage,
   upsertAdminCategory,
   upsertAdminProduct,
@@ -125,6 +137,8 @@ function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
   const [categoryForm, setCategoryForm] = useState<CategoryForm>(emptyCategory);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   // Status pills should only "bump" in response to a real change, not on the
   // table's first paint (which would fire the animation on every visible row
   // at once). This flips true after mount, so only later re-renders animate.
@@ -195,6 +209,33 @@ function AdminProductsPage() {
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [data?.products, search]);
+
+  const visibleIds = products.map((product) => product.id);
+  const selectedVisibleIds = visibleIds.filter((id) => selectedIds.includes(id));
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
+
+  const toggleProduct = (id: string, checked: boolean) =>
+    setSelectedIds((current) =>
+      checked ? [...new Set([...current, id])] : current.filter((value) => value !== id),
+    );
+
+  const toggleAllVisible = (checked: boolean) =>
+    setSelectedIds((current) =>
+      checked
+        ? [...new Set([...current, ...visibleIds])]
+        : current.filter((id) => !visibleIds.includes(id)),
+    );
+
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) => deleteAdminProducts({ data: { ids } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-catalog"] });
+      setSelectedIds([]);
+      setConfirmDeleteOpen(false);
+      toast.success(`Deleted ${result.deleted} product${result.deleted === 1 ? "" : "s"}`);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Delete failed"),
+  });
 
   return (
     <AdminPageFrame
@@ -614,6 +655,27 @@ function AdminProductsPage() {
                   placeholder="Search products"
                 />
               </div>
+              {selectedIds.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedIds.length} selected
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+                      Clear
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <Trash2 />
+                      Delete selected
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div
@@ -625,6 +687,14 @@ function AdminProductsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={(checked) => toggleAllVisible(checked === true)}
+                          aria-label="Select all products"
+                          disabled={visibleIds.length === 0}
+                        />
+                      </TableHead>
                       <TableHead>Product</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead className="text-right">Price</TableHead>
@@ -636,13 +706,13 @@ function AdminProductsPage() {
                   <TableBody>
                     {isLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : products.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300 fill-mode-both">
                             No products found.
                           </div>
@@ -651,6 +721,15 @@ function AdminProductsPage() {
                     ) : (
                       products.map((product) => (
                         <TableRow key={product.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.includes(product.id)}
+                              onCheckedChange={(checked) =>
+                                toggleProduct(product.id, checked === true)
+                              }
+                              aria-label={`Select ${product.name}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="font-medium">{product.name}</div>
                             <div className="text-xs text-muted-foreground">{product.slug}</div>
@@ -728,6 +807,18 @@ function AdminProductsPage() {
                                 <Edit />
                                 Edit
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setSelectedIds([product.id]);
+                                  setConfirmDeleteOpen(true);
+                                }}
+                              >
+                                <Trash2 />
+                                Delete
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -781,6 +872,32 @@ function AdminProductsPage() {
           </section>
         </div>
       )}
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selectedIds.length} product{selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the products, their variants, and their inventory records.
+              Past orders keep their item details. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                deleteMutation.mutate(selectedIds);
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminPageFrame>
   );
 }
